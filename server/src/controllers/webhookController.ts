@@ -22,6 +22,7 @@ import { getMediaUrl, downloadMedia } from "../services/media.service.js";
 import { WeeklyTip } from "../models/WeeklyTip.js";
 import fs from "fs/promises";
 import path from "path";
+import { resolvePublicPath } from "../config/paths.js";
 
 const COVERAGE_CITY_NAMES = [
   "León",
@@ -146,7 +147,7 @@ async function sendActiveWeeklyTipImages(waId: string, inboundPhoneNumberId?: st
       const rel = mediaUrl.replace(/^\/+/, "");
       if (!rel.startsWith("uploads/weekly-tip/")) continue;
 
-      const fullPath = path.join(process.cwd(), "public", rel);
+      const fullPath = resolvePublicPath(rel);
       const buffer = await fs.readFile(fullPath);
       const filename = String(img?.filename || path.basename(rel) || "weekly-tip.jpg");
       const mimeType = String(img?.mimeType || "image/jpeg");

@@ -3,6 +3,7 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { env } from "../config/env.js";
+import { uploadsPath } from "../config/paths.js";
 
 // Obtener la URL de descarga desde el ID del media
 export async function getMediaUrl(mediaId: string): Promise<string | null> {
@@ -30,12 +31,11 @@ export async function downloadMedia(mediaUrl: string, filename: string): Promise
 
     // Asegurar que el directorio existe
     // Ajuste: si se ejecuta desde 'server/', usar 'public/uploads'
-    const uploadDir = path.join(process.cwd(), "public/uploads");
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    if (!fs.existsSync(uploadsPath)) {
+      fs.mkdirSync(uploadsPath, { recursive: true });
     }
 
-    const filePath = path.join(uploadDir, filename);
+    const filePath = path.join(uploadsPath, filename);
     const writer = fs.createWriteStream(filePath);
 
     response.data.pipe(writer);

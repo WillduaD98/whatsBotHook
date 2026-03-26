@@ -12,6 +12,7 @@ import {
 } from '../services/whatsapp.service.js';
 import fs from "fs/promises";
 import path from "path";
+import { resolvePublicPath, resolveUploadsPath } from "../config/paths.js";
 
 // GET /api/conversations
 export const getConversations = async (_req: Request, res: Response) => {
@@ -261,7 +262,7 @@ export const sendWeeklyTip = async (req: Request, res: Response) => {
         const apiRes = await sendTemplateConsejoSemanal(waId, mediaId);
         const messageId = apiRes?.messages?.[0]?.id;
 
-        const uploadDir = path.join(process.cwd(), "public/uploads/template");
+        const uploadDir = resolveUploadsPath("template");
         await fs.mkdir(uploadDir, { recursive: true });
         const previewFilename = makeUploadFilename(file.originalname, file.mimetype, "template-header");
         const previewFullPath = path.join(uploadDir, previewFilename);
@@ -318,7 +319,7 @@ export const broadcastWeeklyTip = async (req: Request, res: Response) => {
             undefined
         );
 
-        const uploadDir = path.join(process.cwd(), "public/uploads/template");
+        const uploadDir = resolveUploadsPath("template");
         await fs.mkdir(uploadDir, { recursive: true });
         const previewFilename = makeUploadFilename(file.originalname, file.mimetype, "template-header");
         const previewFullPath = path.join(uploadDir, previewFilename);
@@ -403,7 +404,7 @@ export const upsertActiveWeeklyTip = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'tipText is required (or provide images)' });
         }
 
-        const uploadDir = path.join(process.cwd(), "public/uploads/weekly-tip");
+        const uploadDir = resolveUploadsPath("weekly-tip");
         await fs.mkdir(uploadDir, { recursive: true });
 
         const currentActive = await WeeklyTip.findOne({ active: true });
@@ -418,7 +419,7 @@ export const upsertActiveWeeklyTip = async (req: Request, res: Response) => {
                 const mediaUrl = String(img?.mediaUrl || "");
                 const rel = mediaUrl.replace(/^\/+/, "");
                 if (!rel.startsWith("uploads/weekly-tip/")) continue;
-                const fullPath = path.join(process.cwd(), "public", rel);
+                const fullPath = resolvePublicPath(rel);
                 try {
                     await fs.unlink(fullPath);
                 } catch (_) {
@@ -484,7 +485,7 @@ export const deleteActiveWeeklyTipImage = async (req: Request, res: Response) =>
         const mediaUrl = String(img?.mediaUrl || "");
         const rel = mediaUrl.replace(/^\/+/, "");
         if (rel.startsWith("uploads/weekly-tip/")) {
-            const fullPath = path.join(process.cwd(), "public", rel);
+            const fullPath = resolvePublicPath(rel);
             try {
                 await fs.unlink(fullPath);
             } catch (_) {

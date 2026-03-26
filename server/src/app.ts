@@ -2,8 +2,8 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import fs from "fs";
-import { fileURLToPath } from "url";
 import { webhookRouter } from "./routes/webhook.routes.js";
+import { repoRoot, uploadsPath } from "./config/paths.js";
 
 export function createApp() {
   const app = express();
@@ -36,15 +36,13 @@ export function createApp() {
     })
   );
 
-  const appDir = path.dirname(fileURLToPath(import.meta.url));
-  const serverRoot = path.resolve(appDir, "..");
-  const repoRoot = path.resolve(serverRoot, "..");
-
   // Servir archivos estáticos (imágenes cargadas)
   // Ajuste: como se ejecuta desde 'server/', la ruta relativa es 'public/uploads'
-  const uploadsPath = path.join(serverRoot, "public/uploads");
-
   app.use("/uploads", express.static(uploadsPath));
+  const altUploadsPath = path.join(process.cwd(), "public/uploads");
+  if (altUploadsPath !== uploadsPath && fs.existsSync(altUploadsPath)) {
+    app.use("/uploads", express.static(altUploadsPath));
+  }
 
   // Necesitamos raw body para la firma de Meta
   app.use(

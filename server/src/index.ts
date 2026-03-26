@@ -2,7 +2,7 @@ import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { startScheduler } from "./services/scheduler.service.js";
-import path from "path";
+import { uploadsPath } from "./config/paths.js";
 
 async function main() {
   await connectDB();
@@ -14,7 +14,7 @@ async function main() {
   console.log("Creando aplicación express...");
   app.listen(env.PORT, () => {
     console.log(`✅ WhatsAppService running on port ${env.PORT}`);
-    console.log(`📂 Static files served from: ${path.join(process.cwd(), "public/uploads")}`);
+    console.log(`📂 Static files served from: ${uploadsPath}`);
   });
 }
 
