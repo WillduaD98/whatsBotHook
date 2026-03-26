@@ -17,7 +17,7 @@
     "client:dev:5173": "cd client && npm run dev -- --port 5173",
     "build": "npm run client:build && cd server && npm run build",
     "seed": "cd server && npm run seed",
-    "render-build": "npm run install && npm run build && npm run seed",
+    "render-build": "npm run install && npm run build",
     "dev": "nodemon --watch './**/*.ts' --exec 'ts-node' src/server.ts"
   },
   "keywords": [],
