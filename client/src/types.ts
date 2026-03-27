@@ -82,8 +82,20 @@ export const API_BASE_URL =
             : 'http://localhost:3000';
 
 export function buildApiUrl(path: string) {
-    if (/^https?:\/\//i.test(path)) return path;
-    const normalized = path.startsWith('/') ? path : `/${path}`;
+    const raw = typeof path === 'string' ? path.trim() : '';
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (/^(blob:|data:)/i.test(raw)) return raw;
+    if (/^file:\/\//i.test(raw)) {
+        try {
+            const u = new URL(raw);
+            const parts = u.pathname.split('/').filter(Boolean);
+            const filename = parts.length > 0 ? parts[parts.length - 1] : '';
+            const clean = filename.replace(/\.html$/i, '');
+            if (clean) return `${API_BASE_URL}/uploads/${encodeURIComponent(clean)}`;
+        } catch {
+        }
+    }
+    const normalized = raw.startsWith('/') ? raw : `/${raw}`;
     return `${API_BASE_URL}${normalized}`;
 }
 
