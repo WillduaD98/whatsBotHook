@@ -25,6 +25,10 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   const [weeklyTipHeaderImage, setWeeklyTipHeaderImage] = useState<File | null>(null);
   const [weeklyTipSending, setWeeklyTipSending] = useState(false);
   const [weeklyTipError, setWeeklyTipError] = useState<string | null>(null);
+  const [payOpen, setPayOpen] = useState(false);
+  const [paySending, setPaySending] = useState(false);
+  const [payError, setPayError] = useState<string | null>(null);
+  const [payForm, setPayForm] = useState({ numero: '', nombre: '', fecha: '', monto: '', clabe: '', referencia: '' });
 
   useEffect(() => {
     if (conversation) {
@@ -182,6 +186,48 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
       }
   };
 
+  const handleSendPaymentReminder = async () => {
+      if (!conversation || paySending) return;
+      const numero = payForm.numero.trim();
+      const nombre = payForm.nombre.trim();
+      const fecha = payForm.fecha.trim();
+      const monto = payForm.monto.trim();
+      const clabe = payForm.clabe.trim();
+      const referencia = payForm.referencia.trim();
+
+      if (!numero) { setPayError('Falta el número de teléfono'); return; }
+      const faltan = Object.entries({ nombre, fecha, monto, clabe, referencia })
+          .filter(([, v]) => !v)
+          .map(([k]) => k);
+      if (faltan.length > 0) { setPayError('Faltan campos: ' + faltan.join(', ')); return; }
+
+      setPaySending(true);
+      setPayError(null);
+      try {
+          const res = await apiFetch(`/api/chats/${encodeURIComponent(numero)}/payment-reminder`, {
+              method: 'POST',
+              token: authToken,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ nombre, fecha, monto, clabe, referencia })
+          });
+
+          if (res.status === 401) { onUnauthorized(); return; }
+          if (!res.ok) { throw new Error(await res.text()); }
+
+          const newMsg = await res.json();
+          // Solo lo insertamos en el hilo visible si es el mismo chat abierto
+          if (String(newMsg?.waId) === String(conversation.waId)) {
+              setMessages(prev => [...prev, newMsg]);
+          }
+          setPayOpen(false);
+      } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Error al enviar recordatorio de pago';
+          setPayError(message);
+      } finally {
+          setPaySending(false);
+      }
+  };
+
   useEffect(() => {
     if (!conversation) return;
 
@@ -303,6 +349,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             >
               📩 Consejo semanal
             </button>
+            <button
+              onClick={() => {
+                setPayError(null);
+                setPayForm({ numero: conversation.waId, nombre: '', fecha: '', monto: '', clabe: '', referencia: '' });
+                setPayOpen(true);
+              }}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.9em'
+              }}
+              title="Enviar plantilla recordatorio_de_pago1"
+            >
+              💳 Recordatorio de pago
+            </button>
         </div>
         </div>
       </div>
@@ -386,6 +450,120 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
         </div>
       )}
 
+      {payOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}
+          onClick={() => { if (!paySending) setPayOpen(false); }}
+        >
+          <div
+            style={{ width: '100%', maxWidth: '520px', background: '#fff', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.1)', padding: '14px', maxHeight: '90vh', overflowY: 'auto' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+              <div style={{ fontWeight: 700 }}>💳 Recordatorio de pago (plantilla)</div>
+              <button
+                onClick={() => setPayOpen(false)}
+                disabled={paySending}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '18px' }}
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ marginTop: '10px', display: 'grid', gap: '10px' }}>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>Número de teléfono (con lada, ej. 5214771234567)</span>
+                <input
+                  type="text"
+                  value={payForm.numero}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, numero: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="5214771234567"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>Nombre del cliente</span>
+                <input
+                  type="text"
+                  value={payForm.nombre}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, nombre: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="María"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>Fecha de pago</span>
+                <input
+                  type="text"
+                  value={payForm.fecha}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, fecha: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="05/09/2026"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>Monto (solo número, el "$" ya va en la plantilla)</span>
+                <input
+                  type="text"
+                  value={payForm.monto}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, monto: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="1,500.00"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>CLABE interbancaria</span>
+                <input
+                  type="text"
+                  value={payForm.clabe}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, clabe: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="012345678901234567"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+              <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
+                <span>Referencia</span>
+                <input
+                  type="text"
+                  value={payForm.referencia}
+                  onChange={(e) => setPayForm((prev) => ({ ...prev, referencia: e.target.value }))}
+                  disabled={paySending}
+                  placeholder="FAC-000123"
+                  style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+                />
+              </label>
+
+              {payError && (
+                <div style={{ color: '#b00020', fontSize: '0.9em' }}>{payError}</div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+              <button
+                onClick={() => setPayOpen(false)}
+                disabled={paySending}
+                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendPaymentReminder}
+                disabled={paySending}
+                style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#008069', color: '#fff', cursor: 'pointer' }}
+              >
+                {paySending ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="chat-messages">
         {loading ? (
           <div>Loading messages...</div>
@@ -417,7 +595,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                     </div>
                   </div>
                 )}
-                {msg.type === 'template' && (
+                {msg.type === 'template' && msg.mediaUrl && (
                   <div className="message-media">
                     {msg.mediaUrl && (
                       <>
@@ -467,6 +645,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                         Descargar 📄
                       </a>
                     </div>
+                  </div>
+                )}
+                {msg.type === 'template' && !msg.mediaUrl && (
+                  <div style={{ marginBottom: '6px', fontSize: '0.8em', color: '#008069', fontWeight: 600 }}>
+                    💳 Recordatorio de pago (recordatorio_de_pago1)
                   </div>
                 )}
                 {msg.text && (

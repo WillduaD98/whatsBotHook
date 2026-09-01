@@ -8,7 +8,8 @@ import {
     sendImage,
     uploadImageMedia,
     uploadWhatsAppMediaImage,
-    sendTemplateConsejoSemanal
+    sendTemplateConsejoSemanal,
+    sendTemplateRecordatorioPago
 } from '../services/whatsapp.service.js';
 import fs from "fs/promises";
 import path from "path";
@@ -762,5 +763,52 @@ export const getProspectsStats = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Error fetching prospects stats:", error);
         return res.status(500).json({ message: "Error fetching prospects stats" });
+    }
+};
+
+// POST /api/chats/:waId/payment-reminder
+export const sendPaymentReminder = async (req: Request, res: Response) => {
+    try {
+        const waId = String(req.params?.waId || '').trim();
+        const nombre = String(req.body?.nombre ?? '').trim();
+        const fecha = String(req.body?.fecha ?? '').trim();
+        const monto = String(req.body?.monto ?? '').trim();
+        const clabe = String(req.body?.clabe ?? '').trim();
+        const referencia = String(req.body?.referencia ?? '').trim();
+
+        if (!waId) return res.status(400).json({ message: 'waId is required' });
+
+        const values = { nombre, fecha, monto, clabe, referencia };
+        const missing = Object.entries(values).filter(([, v]) => !v).map(([k]) => k);
+        if (missing.length > 0) {
+            return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
+        }
+
+        const apiRes = await sendTemplateRecordatorioPago(waId, { nombre, fecha, monto, clabe, referencia });
+        const messageId = apiRes?.messages?.[0]?.id;
+
+        // Texto legible para el historial (refleja lo que ve el cliente)
+        const preview =
+            `Hola ${nombre} 🙂 Te comparto los datos para realizar tu pago:\n` +
+            `🗓️ Fecha de pago: ${fecha}\n` +
+            `💰 Monto: $${monto}\n` +
+            `🏦 CLABE interbancaria: ${clabe}\n` +
+            `🔢 Referencia: ${referencia}`;
+
+        const savedMessage = await saveOutgoingMessage({
+            waId,
+            text: preview,
+            messageId,
+            type: 'template',
+            metadata: {
+                template: 'recordatorio_de_pago1',
+                variables: { nombre, fecha, monto, clabe, referencia }
+            }
+        });
+
+        return res.status(200).json(savedMessage);
+    } catch (error: any) {
+        console.error('Error sending payment reminder template:', error?.response?.data || error);
+        return res.status(500).json({ message: 'Error sending payment reminder template' });
     }
 };

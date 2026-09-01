@@ -273,3 +273,58 @@ export async function sendImage(
 
   return res.data;
 }
+
+export async function sendTemplateRecordatorioPago(
+  to: string,
+  data: { nombre: string; fecha: string; monto: string; clabe: string; referencia: string },
+  opts?: { senderPhoneNumberId?: string | undefined }
+) {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const url = `https://graph.facebook.com/${env.GRAPH_VERSION}/${senderId}/messages`;
+  const toRaw = normalizeTo(String(to || "").trim());
+
+  // El encabezado "Recordatorio de Pago" es texto fijo (no lleva parametro).
+  // Cuerpo: {{1}} nombre, {{2}} fecha, {{3}} monto, {{4}} CLABE, {{5}} referencia
+  const parameters = [
+    { type: "text", text: String(data?.nombre ?? "").trim() },
+    { type: "text", text: String(data?.fecha ?? "").trim() },
+    { type: "text", text: String(data?.monto ?? "").trim() },
+    { type: "text", text: String(data?.clabe ?? "").trim() },
+    { type: "text", text: String(data?.referencia ?? "").trim() }
+  ];
+
+  console.log("[whatsapp] template recordatorio_de_pago1 ->", { to: toRaw, senderId });
+
+  const res = await axios.post(
+    url,
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: {
+        name: "recordatorio_de_pago1",
+        language: { code: "es_MX" },
+        components: [
+          {
+            type: "body",
+            parameters
+          }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const payload = res.data;
+  try {
+    const wamid = payload?.messages?.[0]?.id;
+    if (wamid) console.log("[whatsapp] sent template recordatorio_de_pago1 wamid:", wamid);
+  } catch (_) {}
+  return payload;
+}
