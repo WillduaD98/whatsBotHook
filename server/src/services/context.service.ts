@@ -66,6 +66,7 @@ export async function saveOutgoingMessage(params: { waId: string; text: string; 
   return Message.create({
     waId: id,
     direction: "outgoing",
+    status: "sent",
     messageId: outId,
     type: params.type || "text",
     mediaUrl: params.mediaUrl,
@@ -104,4 +105,24 @@ export async function updateConversationState(waId: string, patch: Partial<{ sta
     // Ignora errores de log para no afectar el flujo
   }
   return updated;
+}
+
+
+// Actualiza el estado (sent/delivered/read/failed) de un mensaje saliente por su wamid
+export async function updateMessageStatusByWamid(messageId: string, status: string) {
+  const allowed = ["sent", "delivered", "read", "failed"];
+  if (!messageId || !allowed.includes(status)) return null;
+  const m: any = await Message.findOne({ messageId });
+  if (!m) return null;
+  const order: Record<string, number> = { sent: 1, delivered: 2, read: 3 };
+  const cur: string | undefined = m.status;
+  if (status === "failed") {
+    if (cur !== "read") { m.status = "failed"; await m.save(); }
+    return m;
+  }
+  if (!cur || cur === "failed" || (order[cur] ?? 0) < (order[status] ?? 0)) {
+    m.status = status;
+    await m.save();
+  }
+  return m;
 }

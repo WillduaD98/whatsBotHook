@@ -242,7 +242,7 @@ function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container ${selectedConversation || path !== '/' ? 'has-selection' : ''}`}>
       <Sidebar 
         onSelectConversation={setSelectedConversation} 
         selectedConversationId={selectedConversation?._id}
@@ -257,7 +257,7 @@ function App() {
       ) : path === '/weekly-tip' ? (
         <WeeklyTipAdminPanel onNavigate={navigate} authToken={authToken} onUnauthorized={handleUnauthorized} />
       ) : (
-        <ChatWindow conversation={selectedConversation} authToken={authToken} onUnauthorized={handleUnauthorized} />
+        <ChatWindow conversation={selectedConversation} authToken={authToken} onUnauthorized={handleUnauthorized} onBack={() => setSelectedConversation(null)} />
       )}
       <button
         className="floating-action-button floating-stats-button"

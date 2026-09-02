@@ -19,7 +19,7 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
-  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
@@ -29,7 +29,7 @@ body {
 
 .app-container {
   display: flex;
-  height: 100vh;
+  height: 100dvh;
   background-color: #fff;
   max-width: 1600px;
   margin: 0 auto;
@@ -39,6 +39,8 @@ body {
 /* Sidebar */
 .sidebar {
   width: 30%;
+  min-width: 340px;
+  max-width: 460px;
   border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
@@ -144,7 +146,8 @@ body {
 
 /* Chat Window */
 .chat-window {
-  width: 70%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
@@ -294,7 +297,8 @@ body {
 }
 
 .stats-panel {
-  width: 70%;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   background-color: #f7f8fa;
@@ -454,3 +458,43 @@ body {
   color: var(--text-secondary);
   font-weight: 700;
 }
+
+
+/* ===== Responsivo: movil como WhatsApp (MT1) ===== */
+.chat-back-button {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  margin-right: 6px;
+  border-radius: 50%;
+  flex: 0 0 auto;
+}
+.chat-back-button:hover { background: rgba(0,0,0,0.06); }
+
+@media (max-width: 768px) {
+  .app-container { max-width: 100%; margin: 0; box-shadow: none; }
+  .sidebar { width: 100%; min-width: 0; max-width: none; border-right: none; }
+  .chat-window, .stats-panel { width: 100%; }
+  /* Sin chat/panel abierto -> se ve la LISTA */
+  .app-container .chat-window,
+  .app-container .stats-panel { display: none; }
+  .app-container .sidebar { display: flex; }
+  /* Con chat/panel abierto -> se ve la CONVERSACION a pantalla completa */
+  .app-container.has-selection .sidebar { display: none; }
+  .app-container.has-selection .chat-window { display: flex; }
+  .app-container.has-selection .stats-panel { display: flex; }
+  /* Boton de regreso solo en movil */
+  .chat-back-button { display: inline-flex; }
+  .floating-action-button { right: 12px; }
+}
+
+.msg-ticks { margin-left: 3px; font-size: 11px; color: #667781; }
+.msg-ticks--read { color: #53bdeb; }

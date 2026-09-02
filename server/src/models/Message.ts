@@ -33,6 +33,10 @@ const MessageSchema = new mongoose.Schema({
         type: String,
         default: ''
     },
+    status: {
+        type: String,
+        enum: ['sent', 'delivered', 'read', 'failed']
+    },
     metadata: {
         type: Object,
         default: null

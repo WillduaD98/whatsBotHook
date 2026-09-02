@@ -19,6 +19,7 @@ export interface Message {
     mimeType?: string;
     caption?: string;
     metadata?: Record<string, unknown> | null;
+    status?: 'sent' | 'delivered' | 'read' | 'failed';
     createdAt: string;
 }
 

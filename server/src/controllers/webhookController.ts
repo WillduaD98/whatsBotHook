@@ -14,7 +14,7 @@ import { detectIntent, buildReply, normalizeText, isClienteText } from "../servi
 // Flujo de cliente: máquina de estados del menú de cliente (datos para pagar / menú principal)
 import { enterClienteMenu, handleClienteFlow } from "../flows/cliente.flow.js";
 // Servicios de contexto/conversación: upsert de conversación y persistencia de mensajes
-import { upsertConversation, saveIncomingMessage, saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
+import { upsertConversation, saveIncomingMessage, saveOutgoingMessage, updateConversationState, updateMessageStatusByWamid } from "../services/context.service.js";
 // Servicios de waId: normalización del número y extracción desde el cuerpo del webhook
 import { normalizeTo } from "../services/waid.service.js";
 // Servicios de geolocalización: validación y clasificación de coordenadas
@@ -371,6 +371,13 @@ export async function handleWebhookPost(req: Request, res: Response) {
         const v = c?.value;
         if (v?.statuses?.length) {
           if (process.env.NODE_ENV !== "production") console.log("[whatsapp] STATUSES:", JSON.stringify(v.statuses, null, 2));
+          for (const s of v.statuses) {
+            try {
+              await updateMessageStatusByWamid(String(s?.id || ""), String(s?.status || ""));
+            } catch (err) {
+              console.error("[whatsapp] status update error:", err);
+            }
+          }
         }
       }
     }

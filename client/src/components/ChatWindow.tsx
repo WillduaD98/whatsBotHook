@@ -5,9 +5,10 @@ interface ChatWindowProps {
   conversation: Conversation | null;
   authToken: string;
   onUnauthorized: () => void;
+  onBack?: () => void;
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken, onUnauthorized }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken, onUnauthorized, onBack }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -289,6 +290,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   return (
     <div className="chat-window">
       <div className="chat-header">
+        <button className="chat-back-button" onClick={() => onBack?.()} aria-label="Regresar" title="Regresar">←</button>
         <div className="avatar">👤</div>
         <div className="chat-info">
           <h3>{conversation.waId}</h3>
@@ -690,6 +692,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 )}
                 <span className="message-time">
                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {msg.direction === 'outgoing' && (
+                    <span className={`msg-ticks ${msg.status === 'read' ? 'msg-ticks--read' : ''}`}>
+                      {msg.status === 'failed' ? ' ⚠' : (msg.status === 'read' || msg.status === 'delivered') ? ' ✓✓' : ' ✓'}
+                    </span>
+                  )}
                 </span>
               </div>
             </div>
