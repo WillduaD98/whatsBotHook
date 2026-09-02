@@ -8,9 +8,11 @@ import { env } from "../config/env.js";
 // Importaciones de middlewares solo como referencia del flujo; se aplican en las rutas
 
 // Servicio de envío de mensajes de texto por WhatsApp (Graph API)
-import { CONSENT_BODY_TEXT, CONSENT_BUTTONS, sendButtons, sendConsentButtons, sendImage, sendText, uploadImageMedia } from "../services/whatsapp.service.js";
+import { CLIENTE_SOY_BUTTON, CONSENT_BODY_TEXT, CONSENT_BUTTONS, sendButtons, sendConsentButtons, sendImage, sendText, uploadImageMedia } from "../services/whatsapp.service.js";
 // Servicios de enrutamiento semántico: detección de intención y construcción de respuestas
-import { detectIntent, buildReply, normalizeText } from "../services/router.service.js";
+import { detectIntent, buildReply, normalizeText, isClienteText } from "../services/router.service.js";
+// Flujo de cliente: máquina de estados del menú de cliente (datos para pagar / menú principal)
+import { enterClienteMenu, handleClienteFlow } from "../flows/cliente.flow.js";
 // Servicios de contexto/conversación: upsert de conversación y persistencia de mensajes
 import { upsertConversation, saveIncomingMessage, saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
 // Servicios de waId: normalización del número y extracción desde el cuerpo del webhook
@@ -578,7 +580,8 @@ export async function handleWebhookPost(req: Request, res: Response) {
         "¿Qué necesitas el día de hoy?";
       const buttons = [
         { id: "MENU_PRE", title: "Pre-solicitud ✅" },
-        { id: "MENU_FAQ", title: "Tengo dudas 📌" }
+        { id: "MENU_FAQ", title: "Tengo dudas 📌" },
+        CLIENTE_SOY_BUTTON
       ];
       const apiRes = await sendButtons(
         waId,
@@ -706,6 +709,31 @@ export async function handleWebhookPost(req: Request, res: Response) {
       return res.sendStatus(200);
     }
 
+    // --- FLUJO CLIENTE (sin opción de asesor) ---
+    if (interactiveBtnId === "CLIENTE_SOY") {
+      await enterClienteMenu(waId, { senderPhoneNumberId: inboundPhoneNumberId });
+      return res.sendStatus(200);
+    }
+
+    if (stage.startsWith("CLIENTE:")) {
+      const clienteResult = await handleClienteFlow({
+        waId,
+        stage,
+        type,
+        text,
+        interactiveBtnId,
+        slots: conv?.slots,
+        senderPhoneNumberId: inboundPhoneNumberId
+      });
+      if (clienteResult.goToMainMenu) {
+        await sendMainMenu();
+        return res.sendStatus(200);
+      }
+      if (clienteResult.handled) {
+        return res.sendStatus(200);
+      }
+    }
+
     if (stage.startsWith("FAQ_MENU")) {
       if (interactiveBtnId === "FAQ_MAS") {
         await sendFaqMenu(2);
@@ -762,6 +790,10 @@ export async function handleWebhookPost(req: Request, res: Response) {
     }
 
     if (!stage.startsWith("ENGAGE") && !stage.startsWith("PRE_SOLICITUD")) {
+      if (type !== "interactive" && isClienteText(text)) {
+        await enterClienteMenu(waId, { senderPhoneNumberId: inboundPhoneNumberId });
+        return res.sendStatus(200);
+      }
       if (exitCandidate.includes("retomar")) {
         const reply = "🙌 ¡Claro! Vamos a retomarlo.\n\nElige una opción:";
         await sendText(waId, reply, { senderPhoneNumberId: inboundPhoneNumberId });

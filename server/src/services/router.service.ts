@@ -49,6 +49,12 @@ function testAny(t: string, patterns: RegExp[]) {
   return patterns.some((p) => p.test(t));
 }
 
+// Detecta si el usuario escribe "cliente" / "soy cliente" para entrar al flujo de cliente sin tocar botón
+export function isClienteText(text: string): boolean {
+  const t = normalizeText(text);
+  return /\b(soy cliente|cliente)\b/.test(t);
+}
+
 // Detección principal de intención basada en texto normalizado y patrones
 export function detectIntent(text: string): Intent {
   // Aplica normalización para aumentar recall y reducir variaciones

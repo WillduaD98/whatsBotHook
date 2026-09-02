@@ -28,7 +28,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   const [payOpen, setPayOpen] = useState(false);
   const [paySending, setPaySending] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
-  const [payForm, setPayForm] = useState({ numero: '', nombre: '', fecha: '', monto: '', clabe: '', referencia: '' });
+  const [payForm, setPayForm] = useState({ numero: '', nombre: '', fecha: '', monto: '', clabe: '', referencia: '', tipo: 'antes' });
 
   useEffect(() => {
     if (conversation) {
@@ -196,7 +196,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
       const referencia = payForm.referencia.trim();
 
       if (!numero) { setPayError('Falta el número de teléfono'); return; }
-      const faltan = Object.entries({ nombre, fecha, monto, clabe, referencia })
+      const tipo = payForm.tipo === 'hoy' ? 'hoy' : 'antes';
+      const requeridos = tipo === 'hoy'
+          ? { monto, clabe, referencia }
+          : { nombre, fecha, monto, clabe, referencia };
+      const faltan = Object.entries(requeridos)
           .filter(([, v]) => !v)
           .map(([k]) => k);
       if (faltan.length > 0) { setPayError('Faltan campos: ' + faltan.join(', ')); return; }
@@ -208,7 +212,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
               method: 'POST',
               token: authToken,
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ nombre, fecha, monto, clabe, referencia })
+              body: JSON.stringify({ tipo, nombre, fecha, monto, clabe, referencia })
           });
 
           if (res.status === 401) { onUnauthorized(); return; }
@@ -352,7 +356,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             <button
               onClick={() => {
                 setPayError(null);
-                setPayForm({ numero: conversation.waId, nombre: '', fecha: '', monto: '', clabe: '', referencia: '' });
+                setPayForm({ numero: conversation.waId, nombre: '', fecha: '', monto: '', clabe: '', referencia: '', tipo: 'antes' });
                 setPayOpen(true);
               }}
               style={{
@@ -472,6 +476,24 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             </div>
 
             <div style={{ marginTop: '10px', display: 'grid', gap: '10px' }}>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPayForm((prev) => ({ ...prev, tipo: 'antes' }))}
+                  disabled={paySending}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', border: payForm.tipo === 'antes' ? '2px solid #008069' : '1px solid #ddd', background: payForm.tipo === 'antes' ? '#e8f5f1' : '#fff', fontWeight: payForm.tipo === 'antes' ? 700 : 400 }}
+                >
+                  Antes del pago
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPayForm((prev) => ({ ...prev, tipo: 'hoy' }))}
+                  disabled={paySending}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', border: payForm.tipo === 'hoy' ? '2px solid #008069' : '1px solid #ddd', background: payForm.tipo === 'hoy' ? '#e8f5f1' : '#fff', fontWeight: payForm.tipo === 'hoy' ? 700 : 400 }}
+                >
+                  El día de pago
+                </button>
+              </div>
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Número de teléfono (con lada, ej. 5214771234567)</span>
                 <input
@@ -483,6 +505,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
               </label>
+              {payForm.tipo !== 'hoy' && (
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Nombre del cliente</span>
                 <input
@@ -494,6 +517,8 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
               </label>
+              )}
+              {payForm.tipo !== 'hoy' && (
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Fecha de pago</span>
                 <input
@@ -505,6 +530,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
               </label>
+              )}
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Monto (solo número, el "$" ya va en la plantilla)</span>
                 <input

@@ -30,6 +30,18 @@ const weeklyTipTemplateUpload = multer({
   }
 });
 
+const MAX_CREDITS_CSV_SIZE_BYTES = 5 * 1024 * 1024;
+const CREDITS_CSV_MIMETYPES = new Set(["text/csv", "application/vnd.ms-excel"]);
+
+const creditsCsvUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 1, fileSize: MAX_CREDITS_CSV_SIZE_BYTES },
+  fileFilter: (_req: any, file: any, cb: any) => {
+    const ok = CREDITS_CSV_MIMETYPES.has(String(file?.mimetype || "").toLowerCase());
+    cb(ok ? undefined : new Error("Only CSV files are allowed"), ok);
+  }
+});
+
 function multerArrayMiddleware(upload: multer.Multer, fieldName: string, maxFiles: number) {
   return (req: any, res: any, next: any) => {
     upload.array(fieldName, maxFiles)(req, res, (err: any) => {
@@ -67,3 +79,17 @@ function multerSingleMiddleware(upload: multer.Multer, fieldName: string) {
 export const broadcastUploadMiddleware = multerArrayMiddleware(broadcastUpload, "images", MAX_BROADCAST_FILES);
 export const weeklyTipUploadMiddleware = multerArrayMiddleware(weeklyTipUpload, "images", MAX_BROADCAST_FILES);
 export const weeklyTipTemplateUploadMiddleware = multerSingleMiddleware(weeklyTipTemplateUpload, "headerImage");
+
+export function creditsCsvUploadMiddleware(req: any, res: any, next: any) {
+  creditsCsvUpload.single("file")(req, res, (err: any) => {
+    if (!err) return next();
+    const isMulterError = err instanceof multer.MulterError;
+    const code = isMulterError ? err.code : "";
+    const status = code === "LIMIT_FILE_SIZE" ? 413 : 400;
+    const message =
+      code === "LIMIT_FILE_SIZE"
+        ? `Archivo demasiado grande. Máximo ${Math.floor(MAX_CREDITS_CSV_SIZE_BYTES / (1024 * 1024))}MB.`
+        : String(err?.message || "Error al subir el archivo CSV");
+    return res.status(status).json({ message });
+  });
+}

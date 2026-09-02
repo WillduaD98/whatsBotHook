@@ -21,6 +21,7 @@ type Env = {
     AUTH_PASSWORD_PLAIN?: string;
     AUTH_PASSWORD_PEPPER?: string;
     JWT_SECRET: string;
+    CONTACTO_TEL: string;
 };
 
 const base = {
@@ -32,7 +33,8 @@ const base = {
     META_APP_SECRET : reqEnv('META_APP_SECRET'),
     MONGODB_URI : reqEnv('MONGODB_URI'),
     AUTH_USERNAME: reqEnv('AUTH_USERNAME'),
-    JWT_SECRET: reqEnv('JWT_SECRET')
+    JWT_SECRET: reqEnv('JWT_SECRET'),
+    CONTACTO_TEL: process.env.CONTACTO_TEL || ''
 } as const;
 
 export const env: Env = {

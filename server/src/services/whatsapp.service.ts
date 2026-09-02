@@ -122,6 +122,9 @@ export async function sendConsentButtons(
   }
 }
 
+// Botón "Soy cliente" que se agrega al menú principal/bienvenida para entrar al flujo de cliente
+export const CLIENTE_SOY_BUTTON: { id: string; title: string } = { id: "CLIENTE_SOY", title: "👤 Soy cliente" };
+
 export async function sendTemplateWeeklyTip(
   to: string,
   mediaId: string,
@@ -325,6 +328,58 @@ export async function sendTemplateRecordatorioPago(
   try {
     const wamid = payload?.messages?.[0]?.id;
     if (wamid) console.log("[whatsapp] sent template recordatorio_de_pago1 wamid:", wamid);
+  } catch (_) {}
+  return payload;
+}
+
+export async function sendTemplateRecordatorioPagoHoy(
+  to: string,
+  data: { monto: string; clabe: string; referencia: string },
+  opts?: { senderPhoneNumberId?: string | undefined }
+) {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const url = `https://graph.facebook.com/${env.GRAPH_VERSION}/${senderId}/messages`;
+  const toRaw = normalizeTo(String(to || "").trim());
+
+  // Plantilla del "dia de pago". Cuerpo: {{1}} monto, {{2}} CLABE, {{3}} referencia
+  const parameters = [
+    { type: "text", text: String(data?.monto ?? "").trim() },
+    { type: "text", text: String(data?.clabe ?? "").trim() },
+    { type: "text", text: String(data?.referencia ?? "").trim() }
+  ];
+
+  console.log("[whatsapp] template recordatorio_hoy_es_tu_pago ->", { to: toRaw, senderId });
+
+  const res = await axios.post(
+    url,
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: {
+        name: "recordatorio_hoy_es_tu_pago",
+        language: { code: "es_MX" },
+        components: [
+          {
+            type: "body",
+            parameters
+          }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const payload = res.data;
+  try {
+    const wamid = payload?.messages?.[0]?.id;
+    if (wamid) console.log("[whatsapp] sent template recordatorio_hoy_es_tu_pago wamid:", wamid);
   } catch (_) {}
   return payload;
 }
