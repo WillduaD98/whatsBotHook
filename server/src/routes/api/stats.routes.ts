@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
-import { getProspectsStats } from "../../controllers/apiController.js";
+import { getProspectsStats } from "../../controllers/stats.controller.js";
 
 export const statsRouter = Router();
 

@@ -8,7 +8,8 @@
     "start": "node dist/index.js",
     "start:build": "npm run build && node dist/index.js",
     "dev": "npx nodemon",
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "seed": "npm run build && node dist/seeds/index.js",
     "migrate:pre-solicitud": "npx tsx src/scripts/migrate-pre-solicitud.ts",
     "migrate:last-message": "npx tsx src/scripts/backfill-last-message.ts"
@@ -49,6 +50,7 @@
     "nodemon": "^3.1.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.15.6",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.7"
   }
 }

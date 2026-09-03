@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
-import { getConversations, updateConversation } from "../../controllers/apiController.js";
+import { getConversations, updateConversation } from "../../controllers/conversations.controller.js";
 
 export const conversationsRouter = Router();
 

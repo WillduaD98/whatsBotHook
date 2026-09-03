@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
 import { rateLimitByKey } from "../../middleware/rateLimit.js";
-import { broadcastWeeklyTip, sendBroadcast } from "../../controllers/apiController.js";
+import { broadcastWeeklyTip, sendBroadcast } from "../../controllers/broadcast.controller.js";
 import { broadcastUploadMiddleware, weeklyTipTemplateUploadMiddleware } from "./uploads.js";
 
 export const broadcastRouter = Router();

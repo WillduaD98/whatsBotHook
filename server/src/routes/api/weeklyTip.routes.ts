@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../middleware/auth.js";
 import { rateLimitByKey } from "../../middleware/rateLimit.js";
-import { deleteActiveWeeklyTipImage, getActiveWeeklyTip, upsertActiveWeeklyTip } from "../../controllers/apiController.js";
+import { deleteActiveWeeklyTipImage, getActiveWeeklyTip, upsertActiveWeeklyTip } from "../../controllers/weeklyTip.controller.js";
 import { weeklyTipUploadMiddleware } from "./uploads.js";
 
 export const weeklyTipRouter = Router();
