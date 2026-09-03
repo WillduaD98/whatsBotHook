@@ -5,6 +5,10 @@ export interface Conversation {
     lastIntent: string;
     verificationStatus?: string; // e.g. "PRE_SOLICITUD_COMPLETA"
     subscriptionStatus?: string; // e.g. "SUSCRITO"
+    lastMessageText?: string;
+    lastMessageType?: string;
+    lastMessageDirection?: string;
+    lastMessageAt?: string;
     updatedAt: string;
 }
 

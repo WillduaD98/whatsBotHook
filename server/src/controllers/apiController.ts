@@ -21,7 +21,31 @@ import { resolvePublicPath, resolveUploadsPath } from "../config/paths.js";
 // GET /api/conversations
 export const getConversations = async (_req: Request, res: Response) => {
     try {
-        const conversations = await Conversation.find().sort({ updatedAt: -1 });
+        const conversations = await Conversation.aggregate([
+            { $addFields: { _sortAt: { $ifNull: ['$lastMessageAt', '$updatedAt'] } } },
+            { $sort: { _sortAt: -1 } },
+            {
+                $lookup: {
+                    from: 'messages',
+                    let: { wa: '$waId' },
+                    pipeline: [
+                        { $match: { $expr: { $eq: ['$waId', '$$wa'] } } },
+                        { $sort: { createdAt: -1 } },
+                        { $limit: 1 },
+                        { $project: { _id: 0, text: 1, type: 1, direction: 1, createdAt: 1 } }
+                    ],
+                    as: '_lastMsg'
+                }
+            },
+            {
+                $addFields: {
+                    lastMessageText: { $ifNull: [{ $arrayElemAt: ['$_lastMsg.text', 0] }, ''] },
+                    lastMessageType: { $ifNull: [{ $arrayElemAt: ['$_lastMsg.type', 0] }, 'text'] },
+                    lastMessageDirection: { $ifNull: [{ $arrayElemAt: ['$_lastMsg.direction', 0] }, ''] }
+                }
+            },
+            { $project: { _lastMsg: 0 } }
+        ]);
         res.status(200).json(conversations);
     } catch (error) {
         console.error('Error fetching conversations:', error);

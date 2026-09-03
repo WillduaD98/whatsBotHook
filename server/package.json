@@ -10,7 +10,8 @@
     "dev": "npx nodemon",
     "test": "echo \"Error: no test specified\" && exit 1",
     "seed": "npm run build && node dist/seeds/index.js",
-    "migrate:pre-solicitud": "npx tsx src/scripts/migrate-pre-solicitud.ts"
+    "migrate:pre-solicitud": "npx tsx src/scripts/migrate-pre-solicitud.ts",
+    "migrate:last-message": "npx tsx src/scripts/backfill-last-message.ts"
   },
   "nodemonConfig": {
     "watch": [

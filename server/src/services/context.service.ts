@@ -51,7 +51,10 @@ export async function saveIncomingMessage(params: {
     doc.messageId = params.messageId.trim();
   }
   // Inserta el documento en la colección de mensajes
-  return Message.create(doc);
+  const saved = await Message.create(doc);
+  // Sube la conversación al tope de la lista (como WhatsApp)
+  await Conversation.updateOne({ waId: id }, { $set: { lastMessageAt: new Date() } });
+  return saved;
 }
 
 // Guarda un mensaje saliente generado por el bot
@@ -63,7 +66,7 @@ export async function saveOutgoingMessage(params: { waId: string; text: string; 
     ? params.messageId.trim()
     : `out-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   // Crea un documento con dirección saliente y el texto enviado
-  return Message.create({
+  const saved = await Message.create({
     waId: id,
     direction: "outgoing",
     status: "sent",
@@ -75,6 +78,8 @@ export async function saveOutgoingMessage(params: { waId: string; text: string; 
     metadata: params.metadata ?? null,
     text: params.text
   });
+  await Conversation.updateOne({ waId: id }, { $set: { lastMessageAt: new Date() } });
+  return saved;
 }
 
 // Obtiene los mensajes recientes para un waId, ordenados por fecha de creación descendente

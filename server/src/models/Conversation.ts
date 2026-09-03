@@ -28,6 +28,10 @@ const ConversationSchema = new mongoose.Schema(
             type: Date,
             default: Date.now
         },
+        lastMessageAt: {
+            type: Date,
+            default: Date.now
+        },
         followUpLevel: {
             type: Number,
             default: 0 // 0=none, 1=3min, 2=2h, 3=24h

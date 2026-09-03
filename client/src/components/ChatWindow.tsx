@@ -1,6 +1,29 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiFetch, buildApiUrl, Conversation, Message } from '../types';
 
+function sortDedupe(arr: Message[]): Message[] {
+  const map = new Map<string, Message>();
+  for (const m of arr) map.set(m._id || `${m.messageId}-${m.createdAt}`, m);
+  return Array.from(map.values()).sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+  );
+}
+
+function sameDay(a: string, b: string): boolean {
+  const da = new Date(a), db = new Date(b);
+  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+}
+
+function dayLabel(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = new Date();
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  const eq = (x: Date, y: Date) => x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
+  if (eq(d, now)) return 'Hoy';
+  if (eq(d, yest)) return 'Ayer';
+  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
+}
+
 interface ChatWindowProps {
   conversation: Conversation | null;
   authToken: string;
@@ -30,6 +53,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   const [paySending, setPaySending] = useState(false);
   const [payError, setPayError] = useState<string | null>(null);
   const [payForm, setPayForm] = useState({ numero: '', nombre: '', fecha: '', monto: '', clabe: '', referencia: '', tipo: 'antes' });
+  const [panelOpen, setPanelOpen] = useState(false);
 
   useEffect(() => {
     if (conversation) {
@@ -136,7 +160,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           
           if (res.ok) {
               const newMsg = await res.json();
-              setMessages(prev => [...prev, newMsg]);
+              setMessages(prev => sortDedupe([...prev, newMsg]));
               setInputText('');
           } else {
               alert('Error al enviar mensaje');
@@ -176,7 +200,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           }
 
           const newMsg = await res.json();
-          setMessages(prev => [...prev, newMsg]);
+          setMessages(prev => sortDedupe([...prev, newMsg]));
           setWeeklyTipHeaderImage(null);
           setWeeklyTipOpen(false);
       } catch (e: unknown) {
@@ -222,7 +246,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           const newMsg = await res.json();
           // Solo lo insertamos en el hilo visible si es el mismo chat abierto
           if (String(newMsg?.waId) === String(conversation.waId)) {
-              setMessages(prev => [...prev, newMsg]);
+              setMessages(prev => sortDedupe([...prev, newMsg]));
           }
           setPayOpen(false);
       } catch (e: unknown) {
@@ -244,7 +268,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           return;
         }
         const data = (await res.json()) as Message[];
-        setMessages(data);
+        setMessages(sortDedupe(data));
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -258,7 +282,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                     return;
                 }
                 const data = (await res.json()) as Message[];
-                setMessages(data);
+                setMessages(sortDedupe(data));
             })
             .catch(() => undefined);
     }, 3000);
@@ -294,7 +318,13 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
         <div className="avatar">👤</div>
         <div className="chat-info">
           <h3>{conversation.waId}</h3>
-          <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+          <div className="chat-subtitle">{currentStage === 'ASESOR' ? 'Modo asesor' : 'Bot activo'}</div>
+        </div>
+        <button className="advisor-toggle" onClick={() => setPanelOpen(v => !v)} aria-label="Acciones" title="Acciones de asesor">⚙️</button>
+      </div>
+      {panelOpen && (
+        <div className="advisor-panel">
+          <div style={{ display: 'flex', gap: '10px', marginTop: '5px', flexWrap: 'wrap', alignItems: 'center' }}>
             <select 
                 value={currentStage} 
                 onChange={(e) => handleStageChange(e.target.value)}
@@ -373,9 +403,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             >
               💳 Recordatorio de pago
             </button>
+          </div>
         </div>
-        </div>
-      </div>
+      )}
 
       {weeklyTipOpen && (
         <div
@@ -596,7 +626,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
         {loading ? (
           <div>Loading messages...</div>
         ) : (
-          messages.map((msg, index) => (
+          messages.map((msg, index) => {
+            const prevMsg = index > 0 ? messages[index - 1] : null;
+            const showDate = !prevMsg || !sameDay(prevMsg.createdAt, msg.createdAt);
+            return (
+            <React.Fragment key={(msg._id || index) + '-frag'}>
+              {showDate && (
+                <div className="date-separator"><span>{dayLabel(msg.createdAt)}</span></div>
+              )}
             <div 
               key={msg._id || index} 
               className={`message ${msg.direction === 'outgoing' ? 'outgoing' : 'incoming'}`}
@@ -700,7 +737,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 </span>
               </div>
             </div>
-          ))
+            </React.Fragment>
+            );
+          })
         )}
         <div ref={messagesEndRef} />
       </div>
@@ -722,19 +761,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           disabled={currentStage !== 'ASESOR'} 
         />
         <button 
+            className="chat-send-button"
             onClick={handleSendMessage}
             disabled={currentStage !== 'ASESOR' || !inputText.trim() || sending}
-            style={{ 
-                marginLeft: '10px', 
-                padding: '10px 20px', 
-                borderRadius: '8px', 
-                border: 'none', 
-                backgroundColor: currentStage === 'ASESOR' ? '#008069' : '#f0f2f5', 
-                color: currentStage === 'ASESOR' ? 'white' : '#999',
-                cursor: currentStage === 'ASESOR' ? 'pointer' : 'not-allowed' 
-            }}
+            aria-label="Enviar"
         >
-            {sending ? '...' : 'Send'}
+            {sending ? '…' : '➤'}
         </button>
       </div>
     </div>
