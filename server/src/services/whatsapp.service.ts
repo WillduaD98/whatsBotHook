@@ -435,3 +435,53 @@ export async function sendTemplatePagoAtrasado(
   } catch (_) {}
   return payload;
 }
+
+
+export async function sendTemplateRegularizaTuPago(
+  to: string,
+  data: { nombre: string; clabe: string; referencia: string },
+  opts?: { senderPhoneNumberId?: string | undefined }
+) {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const url = `https://graph.facebook.com/${env.GRAPH_VERSION}/${senderId}/messages`;
+  const toRaw = normalizeTo(String(to || "").trim());
+
+  // Plantilla 2do dia de atraso. Cuerpo: {{1}} nombre, {{2}} CLABE, {{3}} referencia
+  const parameters = [
+    { type: "text", text: String(data?.nombre ?? "").trim() },
+    { type: "text", text: String(data?.clabe ?? "").trim() },
+    { type: "text", text: String(data?.referencia ?? "").trim() }
+  ];
+
+  console.log("[whatsapp] template regulariza_tu_pago ->", { to: toRaw, senderId });
+
+  const res = await axios.post(
+    url,
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: {
+        name: "regulariza_tu_pago",
+        language: { code: "es_MX" },
+        components: [
+          { type: "body", parameters }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const payload = res.data;
+  try {
+    const wamid = payload?.messages?.[0]?.id;
+    if (wamid) console.log("[whatsapp] sent template regulariza_tu_pago wamid:", wamid);
+  } catch (_) {}
+  return payload;
+}

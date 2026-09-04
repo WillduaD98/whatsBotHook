@@ -7,7 +7,8 @@ import {
     sendTemplateConsejoSemanal,
     sendTemplateRecordatorioPago,
     sendTemplateRecordatorioPagoHoy,
-    sendTemplatePagoAtrasado
+    sendTemplatePagoAtrasado,
+    sendTemplateRegularizaTuPago
 } from '../services/whatsapp.service.js';
 import fs from "fs/promises";
 import path from "path";
@@ -107,7 +108,7 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
     try {
         const waId = String(req.params?.waId || '').trim();
         const tipoRaw = String(req.body?.tipo ?? 'antes').trim().toLowerCase();
-        const tipo = tipoRaw === 'hoy' ? 'hoy' : tipoRaw === 'atraso' ? 'atraso' : 'antes';
+        const tipo = tipoRaw === 'hoy' ? 'hoy' : tipoRaw === 'atraso' ? 'atraso' : tipoRaw === 'atraso2' ? 'atraso2' : 'antes';
         const nombre = String(req.body?.nombre ?? '').trim();
         const fecha = String(req.body?.fecha ?? '').trim();
         const monto = String(req.body?.monto ?? '').trim();
@@ -176,6 +177,40 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
                     template: 'pago_atrasado',
                     tipo,
                     variables: { clabe, referencia }
+                }
+            });
+
+            return res.status(200).json(savedMessage);
+        }
+
+        // --- Recordatorio 2do DIA DE ATRASO (regulariza_tu_pago) ---
+        if (tipo === 'atraso2') {
+            const values = { nombre, clabe, referencia };
+            const missing = Object.entries(values).filter(([, v]) => !v).map(([k]) => k);
+            if (missing.length > 0) {
+                return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
+            }
+
+            const apiRes = await sendTemplateRegularizaTuPago(waId, { nombre, clabe, referencia });
+            const messageId = apiRes?.messages?.[0]?.id;
+
+            const preview =
+                `Hola ${nombre}, tu crédito presenta *2 días de atraso* y aún no recibimos tu pago.\n\n` +
+                `⚠️ Esto ya genera *comisiones por pago tardío que aumentan cada día*. De continuar, tu cuenta pasará a *cobranza formal* y se reportará a las *sociedades de información crediticia*, afectando tu historial y tu acceso a crédito futuro.\n\n` +
+                `Todavía estás a tiempo de resolverlo hoy:\n` +
+                `🏦 *CLABE:* ${clabe}\n` +
+                `🔢 *Referencia:* ${referencia}\n\n` +
+                `📲 *Comunícate HOY al 4777180504* para regularizar tu pago o acordar una solución. Queremos ayudarte a evitar que llegue a esa etapa.`;
+
+            const savedMessage = await saveOutgoingMessage({
+                waId,
+                text: preview,
+                messageId,
+                type: 'template',
+                metadata: {
+                    template: 'regulariza_tu_pago',
+                    tipo,
+                    variables: { nombre, clabe, referencia }
                 }
             });
 

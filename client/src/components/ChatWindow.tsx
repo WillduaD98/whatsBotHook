@@ -221,9 +221,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
       const referencia = payForm.referencia.trim();
 
       if (!numero) { setPayError('Falta el número de teléfono'); return; }
-      const tipo = payForm.tipo === 'hoy' ? 'hoy' : payForm.tipo === 'atraso' ? 'atraso' : 'antes';
+      const tipo = payForm.tipo === 'hoy' ? 'hoy' : payForm.tipo === 'atraso' ? 'atraso' : payForm.tipo === 'atraso2' ? 'atraso2' : 'antes';
       const requeridos = tipo === 'atraso'
           ? { clabe, referencia }
+          : tipo === 'atraso2'
+          ? { nombre, clabe, referencia }
           : tipo === 'hoy'
           ? { monto, clabe, referencia }
           : { nombre, fecha, monto, clabe, referencia };
@@ -510,7 +512,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             </div>
 
             <div style={{ marginTop: '10px', display: 'grid', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setPayForm((prev) => ({ ...prev, tipo: 'antes' }))}
@@ -535,6 +537,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 >
                   Pago atrasado
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setPayForm((prev) => ({ ...prev, tipo: 'atraso2' }))}
+                  disabled={paySending}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', border: payForm.tipo === 'atraso2' ? '2px solid #008069' : '1px solid #ddd', background: payForm.tipo === 'atraso2' ? '#e8f5f1' : '#fff', fontWeight: payForm.tipo === 'atraso2' ? 700 : 400 }}
+                >
+                  Atraso día 2
+                </button>
               </div>
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Número de teléfono (con lada, ej. 5214771234567)</span>
@@ -547,7 +557,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
               </label>
-              {payForm.tipo === 'antes' && (
+              {(payForm.tipo === 'antes' || payForm.tipo === 'atraso2') && (
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Nombre del cliente</span>
                 <input
@@ -573,7 +583,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 />
               </label>
               )}
-{payForm.tipo !== 'atraso' && (
+{(payForm.tipo === 'antes' || payForm.tipo === 'hoy') && (
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Monto (solo número, el "$" ya va en la plantilla)</span>
                 <input
