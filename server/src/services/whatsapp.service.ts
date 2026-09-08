@@ -5,6 +5,10 @@ import { env } from "../config/env.js";
 // Normaliza el número de destino al formato esperado por la API
 import { normalizeTo } from "./waid.service.js";
 
+export function urlTemplate(senderId: string) {
+  return `https://graph.facebook.com/${env.GRAPH_VERSION}/${senderId}/messages`;
+}
+
 function createMultipartFormData(parts: Array<{ headers: string; content: Buffer }>) {
   const boundary = `----whatsbot-${Date.now()}-${Math.random().toString(16).slice(2)}`;
   const chunks: Buffer[] = [];
@@ -484,4 +488,54 @@ export async function sendTemplateRegularizaTuPago(
     if (wamid) console.log("[whatsapp] sent template regulariza_tu_pago wamid:", wamid);
   } catch (_) {}
   return payload;
+}
+
+
+export async function sendTemplatePagoAtrasadoCobranza(
+  to: string,
+  data: { nombre: string; clabe: string; referencia: string },
+  opts?: { senderPhoneNumberId?: string | undefined }
+) {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const url = urlTemplate(senderId);
+  const toRaw = normalizeTo(String(to || "").trim());
+
+  const parameters = [
+    { type: "text", text: String(data?.nombre ?? "").trim() },
+    { type: "text", text: String(data?.clabe ?? "").trim() },
+    { type: "text", text: String(data?.referencia ?? "").trim() }
+  ];
+
+  console.log("[whatsapp] template pago_atrasado_cobranza ->", { to: toRaw, senderId });
+
+  const res = await axios.post(
+    url,
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: {
+        name: "pago_atrasado_cobranza",
+        language: { code: "es_MX" },
+        components: [
+          { type: "body", parameters }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const payload = res.data;
+  try {
+    const wamid = payload?.messages?.[0]?.id;
+    if (wamid) console.log("[whatsapp] sent template pago_atrasado_cobranza wamid:", wamid);
+  } catch (error) {
+    return payload;
+  }
 }

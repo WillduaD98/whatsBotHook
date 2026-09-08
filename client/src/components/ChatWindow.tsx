@@ -1,28 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiFetch, buildApiUrl, Conversation, Message } from '../types';
-
-function sortDedupe(arr: Message[]): Message[] {
-  const map = new Map<string, Message>();
-  for (const m of arr) map.set(m._id || `${m.messageId}-${m.createdAt}`, m);
-  return Array.from(map.values()).sort(
-    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-  );
-}
-
-function sameDay(a: string, b: string): boolean {
-  const da = new Date(a), db = new Date(b);
-  return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
-}
-
-function dayLabel(dateStr: string): string {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const yest = new Date(now); yest.setDate(now.getDate() - 1);
-  const eq = (x: Date, y: Date) => x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
-  if (eq(d, now)) return 'Hoy';
-  if (eq(d, yest)) return 'Ayer';
-  return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'long', year: 'numeric' });
-}
+import { sortDedupe, sameDay, dayLabel } from './chat/messageUtils';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -213,21 +191,28 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
 
   const handleSendPaymentReminder = async () => {
       if (!conversation || paySending) return;
-      const numero = payForm.numero.trim();
-      const nombre = payForm.nombre.trim();
-      const fecha = payForm.fecha.trim();
-      const monto = payForm.monto.trim();
-      const clabe = payForm.clabe.trim();
-      const referencia = payForm.referencia.trim();
+        const numero = (payForm.numero || '').trim();
+        const nombre = (payForm.nombre || '').trim();
+        const fecha = (payForm.fecha || '').trim();
+        const monto = (payForm.monto || '').trim();
+        const clabe = (payForm.clabe || '').trim();
+        const referencia = (payForm.referencia || '').trim();
+        const tipo = payForm.tipo;
 
-      if (!numero) { setPayError('Falta el número de teléfono'); return; }
-      const tipo = payForm.tipo === 'hoy' ? 'hoy' : payForm.tipo === 'atraso' ? 'atraso' : payForm.tipo === 'atraso2' ? 'atraso2' : 'antes';
+        if (!numero) { setPayError('Falta el número de teléfono'); return; }
+        if (!tipo) { setPayError('Falta el tipo'); return; }
+
+        const tiposValidos = new Set(['hoy', 'atraso', 'atraso2', 'atrasolargo']);  
+        if (!tiposValidos.has(tipo)) { setPayError('Tipo inválido'); return; }
+        
       const requeridos = tipo === 'atraso'
           ? { clabe, referencia }
           : tipo === 'atraso2'
           ? { nombre, clabe, referencia }
           : tipo === 'hoy'
           ? { monto, clabe, referencia }
+          : tipo === 'atrasolargo'
+          ? { nombre, clabe, referencia }
           : { nombre, fecha, monto, clabe, referencia };
       const faltan = Object.entries(requeridos)
           .filter(([, v]) => !v)
@@ -545,6 +530,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 >
                   Atraso día 2
                 </button>
+
+                <button
+                  type = 'button'
+                  onClick={() => setPayForm((prev) => ({ ...prev, tipo: 'atrasolargo'}))}
+                  disabled={paySending}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', border: payForm.tipo === 'atrasolargo' ? '2px solid #008069' : '1px solid #ddd', background: payForm.tipo === 'atrasolargo' ? '#e8f5f1' : '#fff', fontWeight: payForm.tipo === 'atrasolargo' ? 700 : 400 }}
+                >
+                  Atraso Largo
+                </button>
               </div>
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Número de teléfono (con lada, ej. 5214771234567)</span>
@@ -557,7 +551,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                   style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
                 />
               </label>
-              {(payForm.tipo === 'antes' || payForm.tipo === 'atraso2') && (
+              {(payForm.tipo === 'antes' || payForm.tipo === 'atraso2' || payForm.tipo === 'atrasolargo') && (
               <label style={{ display: 'grid', gap: '4px', fontSize: '0.9em', color: '#334' }}>
                 <span>Nombre del cliente</span>
                 <input

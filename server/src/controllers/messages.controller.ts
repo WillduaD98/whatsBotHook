@@ -8,7 +8,8 @@ import {
     sendTemplateRecordatorioPago,
     sendTemplateRecordatorioPagoHoy,
     sendTemplatePagoAtrasado,
-    sendTemplateRegularizaTuPago
+    sendTemplateRegularizaTuPago,
+    sendTemplatePagoAtrasadoCobranza
 } from '../services/whatsapp.service.js';
 import fs from "fs/promises";
 import path from "path";
@@ -108,7 +109,9 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
     try {
         const waId = String(req.params?.waId || '').trim();
         const tipoRaw = String(req.body?.tipo ?? 'antes').trim().toLowerCase();
-        const tipo = tipoRaw === 'hoy' ? 'hoy' : tipoRaw === 'atraso' ? 'atraso' : tipoRaw === 'atraso2' ? 'atraso2' : 'antes';
+        const tiposValidos = new Set(['hoy', 'atraso', 'atraso2', 'atrasolargo']);
+        const tipo = tiposValidos.has(tipoRaw) ? tipoRaw : 'antes';
+
         const nombre = String(req.body?.nombre ?? '').trim();
         const fecha = String(req.body?.fecha ?? '').trim();
         const monto = String(req.body?.monto ?? '').trim();
@@ -183,6 +186,8 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
             return res.status(200).json(savedMessage);
         }
 
+
+
         // --- Recordatorio 2do DIA DE ATRASO (regulariza_tu_pago) ---
         if (tipo === 'atraso2') {
             const values = { nombre, clabe, referencia };
@@ -215,6 +220,47 @@ export const sendPaymentReminder = async (req: Request, res: Response) => {
             });
 
             return res.status(200).json(savedMessage);
+        }
+
+        if (tipo === 'atrasolargo') {
+            const values = { nombre, clabe, referencia };
+            const missing = Object.entries(values).filter(([, v]) => !v).map(([k]) => k);
+            if (missing.length > 0) {
+                return res.status(400).json({ message: `Missing fields: ${missing.join(', ')}` });
+            }
+
+            const apiRes = await sendTemplatePagoAtrasadoCobranza(waId, { nombre, clabe, referencia });
+            const messageId = apiRes?.messages?.[0]?.id;
+
+            const preview = 
+            `🚨 *TU ATRASO SIGUE GENERANDO INTERESES*\n\n` +
+
+            `Hola ${nombre}.\n\n` +
+
+            `⚠️ *ES URGENTE QUE TE COMUNIQUES HOY.* Tu atraso *genera intereses moratorios día con día* y puede afectar el comportamiento de tu cuenta y *tu historial crediticio*.\n\n` + 
+
+            `Podemos revisar tu caso y *NEGOCIAR UNA REDUCCIÓN DE LOS INTERESES MORATORIOS GENERADOS* si te comunicas con nosotros.\n\n` + 
+
+            `💳 *CLABE:* ${clabe}\n` + 
+            `🔢 *REFERENCIA:* ${referencia}\n\n` +
+
+            `📞 *477 718 0504*\n\n` + 
+
+            `*NO DEJES PASAR MÁS DÍAS. COMUNÍCATE HOY.*.\n\n`;
+
+                const savedMessage = await saveOutgoingMessage({
+                    waId,
+                    text: preview,
+                    messageId,
+                    type: 'template',
+                    metadata: {
+                        template: 'pago_atrasado_cobranza',
+                        tipo,
+                        variables: { nombre, clabe, referencia }
+                    }
+                });
+
+                return res.status(200).json(savedMessage);
         }
 
         // --- Recordatorio ANTES del pago (recordatorio_de_pago1) ---
