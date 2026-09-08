@@ -535,7 +535,6 @@ export async function sendTemplatePagoAtrasadoCobranza(
   try {
     const wamid = payload?.messages?.[0]?.id;
     if (wamid) console.log("[whatsapp] sent template pago_atrasado_cobranza wamid:", wamid);
-  } catch (error) {
-    return payload;
-  }
+  } catch (_) {}
+  return payload;
 }
