@@ -202,7 +202,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
         if (!numero) { setPayError('Falta el número de teléfono'); return; }
         if (!tipo) { setPayError('Falta el tipo'); return; }
 
-        const tiposValidos = new Set(['hoy', 'atraso', 'atraso2', 'atrasolargo']);  
+        const tiposValidos = new Set(['hoy', 'atraso', 'atraso2', 'atrasolargo', 'antes']);  
         if (!tiposValidos.has(tipo)) { setPayError('Tipo inválido'); return; }
         
       const requeridos = tipo === 'atraso'
