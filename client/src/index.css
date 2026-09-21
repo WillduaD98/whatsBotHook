@@ -296,6 +296,10 @@ body {
   bottom: 126px;
 }
 
+.floating-credits-button {
+  bottom: 180px;
+}
+
 .stats-panel {
   flex: 1;
   min-width: 0;

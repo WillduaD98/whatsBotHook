@@ -20,7 +20,10 @@ export const CLIENTE_MENU_BUTTONS: Array<{ id: string; title: string }> = [
 const ASK_NUMERO_CREDITO_TEXT = "Escribe tu número de crédito";
 
 const PAGO_MICRO_INSTRUCCION =
-  "📋 Copia la CLABE y la referencia para tu depósito o transferencia. Guárdalas hasta confirmar tu pago.";
+  "📋 Copia la CLABE y la referencia para tu transferencia. Con estas tu puedes realizar tu transferencia.";
+
+// A partir de este número de intentos fallidos (número no encontrado o nombre rechazado) se sugiere contactar por teléfono.
+const MAX_ATTEMPTS_BEFORE_CONTACT = 2;
 
 type SendOpts = { senderPhoneNumberId?: string | undefined };
 
@@ -55,12 +58,22 @@ function contactoSuffix(): string {
   return tel ? ` o comunícate al ${tel}` : "";
 }
 
-function buildNotFoundMessage(): string {
-  return `No encontramos ese número, verifícalo${contactoSuffix()}.`;
+function buildNotFoundMessage(attempts: number): string {
+  const suffix = attempts >= MAX_ATTEMPTS_BEFORE_CONTACT ? contactoSuffix() : "";
+  return `No encontramos ese número, verifícalo${suffix}.`;
 }
 
-function buildMismatchMessage(): string {
-  return `Ese número no corresponde, verifícalo${contactoSuffix()}.`;
+function buildMismatchMessage(attempts: number): string {
+  const suffix = attempts >= MAX_ATTEMPTS_BEFORE_CONTACT ? contactoSuffix() : "";
+  return `Ese número no corresponde, verifícalo${suffix}.`;
+}
+
+function buildClabeMessage(clabe: string): string {
+  return `Cuenta CLABE a depositar: ${clabe}`;
+}
+
+function buildReferenciaMessage(referencia: string): string {
+  return `Número de referencia (concepto): ${referencia}`;
 }
 
 export async function sendClienteMenu(to: string, opts?: SendOpts) {
@@ -162,7 +175,7 @@ export async function handleClienteFlow(params: {
     if (!credit) {
       const attempts = Number(clienteSlots.attempts || 0) + 1;
       await updateConversationState(waId, { slots: { ...baseSlots, cliente: { attempts } } });
-      const reply = buildNotFoundMessage();
+      const reply = buildNotFoundMessage(attempts);
       await sendText(waId, reply, opts);
       await saveOutgoingMessage({ waId, text: reply });
       return { handled: true };
@@ -191,17 +204,19 @@ export async function handleClienteFlow(params: {
           stage: CLIENTE_STAGE_ESPERA_NUM_CREDITO,
           slots: { ...baseSlots, cliente: { attempts: 0 } }
         });
-        const reply = buildNotFoundMessage();
+        const reply = buildNotFoundMessage(0);
         await sendText(waId, reply, opts);
         await saveOutgoingMessage({ waId, text: reply });
         return { handled: true };
       }
 
       // CLABE y referencia en mensajes separados para que se puedan copiar fácilmente
-      await sendText(waId, credit.clabe, opts);
-      await saveOutgoingMessage({ waId, text: credit.clabe });
-      await sendText(waId, credit.referencia, opts);
-      await saveOutgoingMessage({ waId, text: credit.referencia });
+      const clabeMessage = buildClabeMessage(credit.clabe);
+      await sendText(waId, clabeMessage, opts);
+      await saveOutgoingMessage({ waId, text: clabeMessage });
+      const referenciaMessage = buildReferenciaMessage(credit.referencia);
+      await sendText(waId, referenciaMessage, opts);
+      await saveOutgoingMessage({ waId, text: referenciaMessage });
       await sendText(waId, PAGO_MICRO_INSTRUCCION, opts);
       await saveOutgoingMessage({ waId, text: PAGO_MICRO_INSTRUCCION });
 
@@ -211,11 +226,12 @@ export async function handleClienteFlow(params: {
     }
 
     if (interactiveBtnId === "CLIENTE_NOMBRE_NO") {
+      const attempts = Number(clienteSlots.attempts || 0) + 1;
       await updateConversationState(waId, {
         stage: CLIENTE_STAGE_ESPERA_NUM_CREDITO,
-        slots: { ...baseSlots, cliente: { attempts: 0 } }
+        slots: { ...baseSlots, cliente: { attempts } }
       });
-      const reply = buildMismatchMessage();
+      const reply = buildMismatchMessage(attempts);
       await sendText(waId, reply, opts);
       await saveOutgoingMessage({ waId, text: reply });
       await askNumeroCredito(waId, opts);

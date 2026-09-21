@@ -75,6 +75,37 @@ export interface ProspectStatsResponse {
     items: ProspectStatsItem[];
 }
 
+export interface CreditRecord {
+    _id: string;
+    numeroCredito: string;
+    nombre: string;
+    clabe: string;
+    referencia: string;
+    activo: boolean;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface CreditListResponse {
+    items: CreditRecord[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
+export interface CreditUploadError {
+    fila: number;
+    motivo: string;
+}
+
+export interface CreditUploadSummary {
+    recibidos: number;
+    insertados: number;
+    actualizados: number;
+    omitidos: number;
+    errores: CreditUploadError[];
+}
+
 const rawViteApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export const API_BASE_URL =
