@@ -5,19 +5,26 @@ import { sendButtons, sendText } from "../services/whatsapp.service.js";
 import { saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
 import { normalizeText } from "../services/router.service.js";
 import { findCreditByNumber } from "../services/credit.service.js";
+import { createPaymentProof } from "../services/paymentProof.service.js";
 
 export const CLIENTE_STAGE_MENU = "CLIENTE:menu";
 export const CLIENTE_STAGE_ESPERA_NUM_CREDITO = "CLIENTE:espera_num_credito";
 export const CLIENTE_STAGE_CONFIRMA_NOMBRE = "CLIENTE:confirma_nombre";
+export const CLIENTE_STAGE_ESPERA_COMPROBANTE = "CLIENTE:espera_comprobante";
 
 export const CLIENTE_MENU_BODY_TEXT = "👤 *Menú de cliente*\n\n¿Qué necesitas?";
 
 export const CLIENTE_MENU_BUTTONS: Array<{ id: string; title: string }> = [
   { id: "CLIENTE_DATOS_PAGO", title: "💳 Datos para pagar" },
+  { id: "CLIENTE_COMPROBANTE", title: "🧾 Ya pagué" },
   { id: "CLIENTE_MENU_PRINCIPAL", title: "↩️ Menú principal" }
 ];
 
 const ASK_NUMERO_CREDITO_TEXT = "Escribe tu número de crédito";
+
+const ASK_COMPROBANTE_TEXT = "Envíame la foto o el PDF de tu comprobante de pago.";
+
+const COMPROBANTE_RECIBIDO_TEXT = "✅ Recibimos tu comprobante. En breve lo validaremos.";
 
 const PAGO_MICRO_INSTRUCCION =
   "📋 Copia la CLABE y la referencia para tu transferencia. Con estas tu puedes realizar tu transferencia.";
@@ -115,6 +122,17 @@ async function enterEsperaNumeroCredito(waId: string, baseSlots: any, opts?: Sen
   await askNumeroCredito(waId, opts);
 }
 
+async function askComprobante(waId: string, opts?: SendOpts) {
+  await sendText(waId, ASK_COMPROBANTE_TEXT, opts);
+  await saveOutgoingMessage({ waId, text: ASK_COMPROBANTE_TEXT });
+}
+
+// Conserva los slots existentes (p.ej. numeroCredito ya confirmado) al entrar a esperar el comprobante.
+async function enterEsperaComprobante(waId: string, opts?: SendOpts) {
+  await updateConversationState(waId, { stage: CLIENTE_STAGE_ESPERA_COMPROBANTE });
+  await askComprobante(waId, opts);
+}
+
 async function sendConfirmaNombreButtons(waId: string, display: string, opts?: SendOpts) {
   const body = `¿Tu nombre es ${display}?`;
   const buttons = [
@@ -140,8 +158,10 @@ export async function handleClienteFlow(params: {
   interactiveBtnId?: string | undefined;
   slots: any;
   senderPhoneNumberId?: string | undefined;
+  mediaUrl?: string | undefined;
+  mimeType?: string | undefined;
 }): Promise<ClienteFlowResult> {
-  const { waId, stage, type, text, interactiveBtnId } = params;
+  const { waId, stage, type, text, interactiveBtnId, mediaUrl, mimeType } = params;
   const opts: SendOpts = { senderPhoneNumberId: params.senderPhoneNumberId };
   const baseSlots = params.slots && typeof params.slots === "object" ? params.slots : {};
   const clienteSlots: ClienteSlots =
@@ -158,6 +178,10 @@ export async function handleClienteFlow(params: {
     }
     if (interactiveBtnId === "CLIENTE_DATOS_PAGO") {
       await enterEsperaNumeroCredito(waId, baseSlots, opts);
+      return { handled: true };
+    }
+    if (interactiveBtnId === "CLIENTE_COMPROBANTE") {
+      await enterEsperaComprobante(waId, opts);
       return { handled: true };
     }
     await sendClienteMenuAndLog(waId, opts);
@@ -240,6 +264,28 @@ export async function handleClienteFlow(params: {
 
     const display = formatClienteDisplayName(clienteSlots.nombre || "");
     await sendConfirmaNombreButtons(waId, display, opts);
+    return { handled: true };
+  }
+
+  if (stage === CLIENTE_STAGE_ESPERA_COMPROBANTE) {
+    const isMedia = (type === "image" || type === "document") && Boolean(mediaUrl);
+    if (!isMedia) {
+      await askComprobante(waId, opts);
+      return { handled: true };
+    }
+
+    await createPaymentProof({
+      waId,
+      numeroCredito: clienteSlots.numeroCredito,
+      mediaUrl: mediaUrl as string,
+      mimeType
+    });
+
+    await sendText(waId, COMPROBANTE_RECIBIDO_TEXT, opts);
+    await saveOutgoingMessage({ waId, text: COMPROBANTE_RECIBIDO_TEXT });
+
+    const { cliente: _cliente, ...restSlots } = baseSlots;
+    await updateConversationState(waId, { stage: "start", lastIntent: "SALUDO", slots: restSlots });
     return { handled: true };
   }
 

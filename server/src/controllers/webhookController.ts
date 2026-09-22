@@ -331,7 +331,9 @@ export async function handleWebhookPost(req: Request, res: Response) {
         text,
         interactiveBtnId,
         slots: conv?.slots,
-        senderPhoneNumberId: inboundPhoneNumberId
+        senderPhoneNumberId: inboundPhoneNumberId,
+        mediaUrl,
+        mimeType
       });
       if (clienteResult.goToMainMenu) {
         await sendMainMenu();

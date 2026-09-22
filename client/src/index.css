@@ -300,6 +300,10 @@ body {
   bottom: 180px;
 }
 
+.floating-payment-proofs-button {
+  bottom: 234px;
+}
+
 .stats-panel {
   flex: 1;
   min-width: 0;

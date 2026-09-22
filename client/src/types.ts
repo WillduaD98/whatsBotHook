@@ -106,6 +106,26 @@ export interface CreditUploadSummary {
     errores: CreditUploadError[];
 }
 
+export type PaymentProofStatus = 'pendiente' | 'validado' | 'rechazado';
+
+export interface PaymentProofRecord {
+    _id: string;
+    waId: string;
+    numeroCredito?: string;
+    mediaUrl: string;
+    mimeType?: string;
+    status: PaymentProofStatus;
+    createdAt?: string;
+    updatedAt?: string;
+}
+
+export interface PaymentProofListResponse {
+    items: PaymentProofRecord[];
+    total: number;
+    page: number;
+    pageSize: number;
+}
+
 const rawViteApiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
 export const API_BASE_URL =
