@@ -134,11 +134,9 @@ export const startWebhookWorker = async (): Promise<void> => {
                 WebhookEvent.countDocuments({ status: 'processing' }),
                 WebhookEvent.countDocuments({ status: 'failed' })
             ]);
-            // Solo imprime si hay trabajo pendiente o en curso. Los 'failed' se muestran en el mismo log,
-            // pero no bastan para imprimir: nunca se borran, y con uno solo se imprimiría cada minuto para siempre.
-            if (pending > 0 || processing > 0) {
-                console.log('[webhookWorker] estado de la cola', { pending, processing, failed });
-            }
+            // Se imprime siempre, cada minuto, aunque todo esté en 0: en producción (Render) sirve como
+            // señal de que el worker sigue vivo. Si este log deja de aparecer, el cron se detuvo.
+            console.log('[webhookWorker] estado de la cola', { pending, processing, failed });
         } catch (error) {
             console.error('[webhookWorker] queue check error:', error);
         }
