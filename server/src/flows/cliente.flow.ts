@@ -6,11 +6,16 @@ import { saveOutgoingMessage, updateConversationState } from "../services/contex
 import { normalizeText } from "../services/router.service.js";
 import { findCreditByNumber } from "../services/credit.service.js";
 import { createPaymentProof } from "../services/paymentProof.service.js";
+// Modelo usado directamente (decisión del usuario) para marcar un comprobante como regresado por el cliente
+import { PaymentProof } from "../models/PaymentProof.js";
 
 export const CLIENTE_STAGE_MENU = "CLIENTE:menu";
 export const CLIENTE_STAGE_ESPERA_NUM_CREDITO = "CLIENTE:espera_num_credito";
 export const CLIENTE_STAGE_CONFIRMA_NOMBRE = "CLIENTE:confirma_nombre";
 export const CLIENTE_STAGE_ESPERA_COMPROBANTE = "CLIENTE:espera_comprobante";
+// Comprobante recibido y en revisión: la conversación se queda aquí hasta que un asesor lo revise
+// o el cliente pida reenviarlo
+export const CLIENTE_STAGE_COMPROBANTE_PENDIENTE = "CLIENTE:comprobante_pendiente";
 
 export const CLIENTE_MENU_BODY_TEXT = "👤 *Menú de cliente*\n\n¿Qué necesitas?";
 
@@ -26,6 +31,12 @@ const ASK_COMPROBANTE_TEXT = "Envíame la foto o el PDF de tu comprobante de pag
 
 const COMPROBANTE_RECIBIDO_TEXT = "✅ Recibimos tu comprobante. En breve lo validaremos.";
 
+const COMPROBANTE_EN_REVISION_TEXT = "⏳ Tu comprobante sigue en revisión. En breve lo validaremos.";
+
+// Botón para descartar el comprobante en revisión y volver a empezar.
+// WhatsApp limita el título de un botón a 20 caracteres; "Reenviar comprobante" tiene justo 20.
+const REENVIAR_COMPROBANTE_BUTTON = { id: "CLIENTE_REENVIAR_COMPROBANTE", title: "Reenviar comprobante" };
+
 const PAGO_MICRO_INSTRUCCION =
   "📋 Copia la CLABE y la referencia para tu transferencia. Con estas tu puedes realizar tu transferencia.";
 
@@ -34,10 +45,15 @@ const MAX_ATTEMPTS_BEFORE_CONTACT = 2;
 
 type SendOpts = { senderPhoneNumberId?: string | undefined };
 
+// Para qué se está verificando el número de crédito: "Datos para pagar" o "Ya pagué".
+// Las dos opciones comparten la verificación y se separan al confirmar el nombre.
+type ClientePurpose = "datos_pago" | "comprobante";
+
 type ClienteSlots = {
   attempts?: number;
   numeroCredito?: string;
   nombre?: string;
+  purpose?: ClientePurpose;
 };
 
 export type ClienteFlowResult = { handled: boolean; goToMainMenu?: boolean };
@@ -114,10 +130,12 @@ async function askNumeroCredito(waId: string, opts?: SendOpts) {
   await saveOutgoingMessage({ waId, text: ASK_NUMERO_CREDITO_TEXT });
 }
 
-async function enterEsperaNumeroCredito(waId: string, baseSlots: any, opts?: SendOpts) {
+// purpose se guarda en slots.cliente para saber, al confirmar el nombre, si hay que mandar
+// los datos de pago o pedir el comprobante
+async function enterEsperaNumeroCredito(waId: string, baseSlots: any, purpose: ClientePurpose, opts?: SendOpts) {
   await updateConversationState(waId, {
     stage: CLIENTE_STAGE_ESPERA_NUM_CREDITO,
-    slots: { ...baseSlots, cliente: { attempts: 0 } }
+    slots: { ...baseSlots, cliente: { attempts: 0, purpose } }
   });
   await askNumeroCredito(waId, opts);
 }
@@ -139,6 +157,19 @@ async function sendConfirmaNombreButtons(waId: string, display: string, opts?: S
     { id: "CLIENTE_NOMBRE_SI", title: "Sí" },
     { id: "CLIENTE_NOMBRE_NO", title: "No" }
   ];
+  const apiRes = await sendButtons(waId, body, buttons, opts);
+  const outId = apiRes?.messages?.[0]?.id;
+  await saveOutgoingMessage({
+    waId,
+    text: formatInteractiveForLog(body, buttons),
+    messageId: outId,
+    type: "interactive"
+  });
+}
+
+// Manda un mensaje con el botón "Reenviar comprobante" y lo guarda en el historial de la conversación
+async function sendReenviarComprobanteButton(waId: string, body: string, opts?: SendOpts) {
+  const buttons = [REENVIAR_COMPROBANTE_BUTTON];
   const apiRes = await sendButtons(waId, body, buttons, opts);
   const outId = apiRes?.messages?.[0]?.id;
   await saveOutgoingMessage({
@@ -177,11 +208,12 @@ export async function handleClienteFlow(params: {
       return { handled: true, goToMainMenu: true };
     }
     if (interactiveBtnId === "CLIENTE_DATOS_PAGO") {
-      await enterEsperaNumeroCredito(waId, baseSlots, opts);
+      await enterEsperaNumeroCredito(waId, baseSlots, "datos_pago", opts);
       return { handled: true };
     }
+    // "Ya pagué" primero verifica número y nombre (igual que "Datos para pagar") y después pide el comprobante
     if (interactiveBtnId === "CLIENTE_COMPROBANTE") {
-      await enterEsperaComprobante(waId, opts);
+      await enterEsperaNumeroCredito(waId, baseSlots, "comprobante", opts);
       return { handled: true };
     }
     await sendClienteMenuAndLog(waId, opts);
@@ -198,7 +230,8 @@ export async function handleClienteFlow(params: {
     const credit = await findCreditByNumber(numero);
     if (!credit) {
       const attempts = Number(clienteSlots.attempts || 0) + 1;
-      await updateConversationState(waId, { slots: { ...baseSlots, cliente: { attempts } } });
+      // Se conserva purpose para no perder a qué opción entró el cliente ("Datos para pagar" o "Ya pagué")
+      await updateConversationState(waId, { slots: { ...baseSlots, cliente: { attempts, purpose: clienteSlots.purpose } } });
       const reply = buildNotFoundMessage(attempts);
       await sendText(waId, reply, opts);
       await saveOutgoingMessage({ waId, text: reply });
@@ -210,7 +243,12 @@ export async function handleClienteFlow(params: {
       stage: CLIENTE_STAGE_CONFIRMA_NOMBRE,
       slots: {
         ...baseSlots,
-        cliente: { attempts: clienteSlots.attempts || 0, numeroCredito: credit.numeroCredito, nombre: credit.nombre }
+        cliente: {
+          attempts: clienteSlots.attempts || 0,
+          numeroCredito: credit.numeroCredito,
+          nombre: credit.nombre,
+          purpose: clienteSlots.purpose
+        }
       }
     });
     await sendConfirmaNombreButtons(waId, display, opts);
@@ -226,11 +264,21 @@ export async function handleClienteFlow(params: {
         // Caso borde: el crédito fue desactivado/eliminado entre la búsqueda y la confirmación
         await updateConversationState(waId, {
           stage: CLIENTE_STAGE_ESPERA_NUM_CREDITO,
-          slots: { ...baseSlots, cliente: { attempts: 0 } }
+          slots: { ...baseSlots, cliente: { attempts: 0, purpose: clienteSlots.purpose } }
         });
         const reply = buildNotFoundMessage(0);
         await sendText(waId, reply, opts);
         await saveOutgoingMessage({ waId, text: reply });
+        return { handled: true };
+      }
+
+      // Las conversaciones que ya iban a medio flujo antes de este cambio no traen purpose:
+      // se tratan como "datos_pago", que era el único camino que existía.
+      const purpose: ClientePurpose = clienteSlots.purpose ?? "datos_pago";
+      if (purpose === "comprobante") {
+        // Número y nombre verificados: ahora sí se pide el comprobante. slots.cliente se conserva
+        // (enterEsperaComprobante solo cambia el stage) para guardar el numeroCredito en el PaymentProof.
+        await enterEsperaComprobante(waId, opts);
         return { handled: true };
       }
 
@@ -253,7 +301,7 @@ export async function handleClienteFlow(params: {
       const attempts = Number(clienteSlots.attempts || 0) + 1;
       await updateConversationState(waId, {
         stage: CLIENTE_STAGE_ESPERA_NUM_CREDITO,
-        slots: { ...baseSlots, cliente: { attempts } }
+        slots: { ...baseSlots, cliente: { attempts, purpose: clienteSlots.purpose } }
       });
       const reply = buildMismatchMessage(attempts);
       await sendText(waId, reply, opts);
@@ -281,11 +329,30 @@ export async function handleClienteFlow(params: {
       mimeType
     });
 
-    await sendText(waId, COMPROBANTE_RECIBIDO_TEXT, opts);
-    await saveOutgoingMessage({ waId, text: COMPROBANTE_RECIBIDO_TEXT });
+    // Ya no vuelve a "start": la conversación se queda esperando a que un asesor revise el comprobante
+    // o a que el cliente pida reenviarlo. El stage se cambia antes de mandar el mensaje para que, si el
+    // envío falla y el mensaje se reintenta, no se cree un segundo comprobante con la misma foto.
+    await updateConversationState(waId, { stage: CLIENTE_STAGE_COMPROBANTE_PENDIENTE });
+    await sendReenviarComprobanteButton(waId, COMPROBANTE_RECIBIDO_TEXT, opts);
+    return { handled: true };
+  }
 
-    const { cliente: _cliente, ...restSlots } = baseSlots;
-    await updateConversationState(waId, { stage: "start", lastIntent: "SALUDO", slots: restSlots });
+  if (stage === CLIENTE_STAGE_COMPROBANTE_PENDIENTE) {
+    if (interactiveBtnId === REENVIAR_COMPROBANTE_BUTTON.id) {
+      // El cliente quiere mandar otro comprobante: el que estaba en revisión (el más reciente en
+      // 'pendiente' de este WhatsApp) se marca 'regresado_por_cliente' para que el asesor ya no lo revise.
+      // findOneAndUpdate busca y actualiza en una sola operación.
+      await PaymentProof.findOneAndUpdate(
+        { waId, status: "pendiente" },
+        { $set: { status: "regresado_por_cliente" } },
+        { sort: { createdAt: -1 } }
+      );
+      // Mismo patrón que otras salidas del flujo: el controller manda el menú principal y limpia stage y slots
+      return { handled: true, goToMainMenu: true };
+    }
+
+    // Cualquier otro mensaje (texto, otra foto...): no avanza, solo recuerda que sigue en revisión
+    await sendReenviarComprobanteButton(waId, COMPROBANTE_EN_REVISION_TEXT, opts);
     return { handled: true };
   }
 

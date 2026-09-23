@@ -106,7 +106,8 @@ export interface CreditUploadSummary {
     errores: CreditUploadError[];
 }
 
-export type PaymentProofStatus = 'pendiente' | 'validado' | 'rechazado';
+// 'regresado_por_cliente': el propio cliente pidió reenviar su comprobante desde WhatsApp
+export type PaymentProofStatus = 'pendiente' | 'validado' | 'rechazado' | 'regresado_por_cliente';
 
 export interface PaymentProofRecord {
     _id: string;

@@ -10,17 +10,21 @@ interface PaymentProofsPanelProps {
 const STATUS_LABELS: Record<PaymentProofStatus, string> = {
   pendiente: 'Pendiente',
   validado: 'Validado',
-  rechazado: 'Rechazado'
+  rechazado: 'Rechazado',
+  regresado_por_cliente: 'Regresado por cliente'
 };
 
 const STATUS_OPTIONS: Array<{ value: PaymentProofStatus | ''; label: string }> = [
   { value: 'pendiente', label: 'Pendientes' },
   { value: 'validado', label: 'Validados' },
   { value: 'rechazado', label: 'Rechazados' },
+  { value: 'regresado_por_cliente', label: 'Regresados por cliente' },
   { value: '', label: 'Todos' }
 ];
 
-const ALL_STATUSES: PaymentProofStatus[] = ['pendiente', 'validado', 'rechazado'];
+// Estados que el asesor puede poner a mano con los botones "Marcar ...".
+// 'regresado_por_cliente' no está porque solo lo pone el cliente desde WhatsApp.
+const MANUAL_STATUSES: PaymentProofStatus[] = ['pendiente', 'validado', 'rechazado'];
 
 export const PaymentProofsPanel: React.FC<PaymentProofsPanelProps> = ({ onNavigate, authToken, onUnauthorized }) => {
   const [statusFilter, setStatusFilter] = useState<PaymentProofStatus | ''>('pendiente');
@@ -63,13 +67,26 @@ export const PaymentProofsPanel: React.FC<PaymentProofsPanelProps> = ({ onNaviga
 
   const onChangeStatus = async (id: string, nextStatus: PaymentProofStatus) => {
     if (updatingId) return;
+
+    // Al validar, el backend exige el monto del pago. Se pide con un cuadro de texto del navegador;
+    // si el asesor cancela, no se manda nada.
+    let monto: number | undefined;
+    if (nextStatus === 'validado') {
+      const montoTexto = window.prompt('¿Por cuánto monto fue validado?');
+      if (montoTexto === null) return;
+      // Conversión mínima de texto a número, porque el backend solo acepta números. No se limpian $ ni comas:
+      // "1,500" o "$1500" dan NaN (se envía como null) y el backend responde 400 con su mensaje de error.
+      monto = Number(montoTexto);
+    }
+
     setUpdatingId(id);
     setError(null);
     try {
       const res = await apiFetch(`/api/payment-proofs/${encodeURIComponent(id)}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: nextStatus }),
+        // Si monto es undefined (cualquier status que no sea 'validado'), JSON.stringify lo omite del body
+        body: JSON.stringify({ status: nextStatus, monto }),
         token: authToken
       });
       if (res.status === 401) {
@@ -148,7 +165,7 @@ export const PaymentProofsPanel: React.FC<PaymentProofsPanelProps> = ({ onNaviga
                   <td>{STATUS_LABELS[proof.status]}</td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                      {ALL_STATUSES.filter((s) => s !== proof.status).map((s) => (
+                      {MANUAL_STATUSES.filter((s) => s !== proof.status).map((s) => (
                         <button
                           key={s}
                           className="stats-button"
