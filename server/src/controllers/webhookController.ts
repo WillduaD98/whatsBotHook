@@ -56,6 +56,13 @@ function isDuplicateKeyError(err: unknown): boolean {
   return typeof err === "object" && err !== null && "code" in err && err.code === 11000;
 }
 
+// Botón "Pre-solicitud ✅" de los menús, dentro de un arreglo para poder insertarlo con ... en otros arreglos
+// de botones. Con la bandera PRE_SOLICITUD_ENABLED apagada devuelve un arreglo vacío y el botón no aparece.
+// (Si alguien toca un botón viejo de un mensaje anterior, enterPreSolicitud responde "no disponible").
+function preSolicitudButtons(): Array<{ id: string; title: string }> {
+  return env.PRE_SOLICITUD_ENABLED ? [{ id: "MENU_PRE", title: "Pre-solicitud ✅" }] : [];
+}
+
 // Handler POST /webhook: procesamiento principal de mensajes entrantes
 // Handler POST /webhook: procesamiento principal de mensajes entrantes
 export async function handleWebhookPost(req: Request, res: Response) {
@@ -262,7 +269,7 @@ export async function processIncomingMessage(params: {
       "Hola 👋 Soy el asistente de *TandaYa*.\n\n" +
       "¿Qué necesitas el día de hoy?";
     const buttons = [
-      { id: "MENU_PRE", title: "Pre-solicitud ✅" },
+      ...preSolicitudButtons(),
       { id: "MENU_FAQ", title: "Tengo dudas 📌" },
       CLIENTE_SOY_BUTTON
     ];
@@ -404,22 +411,18 @@ export async function processIncomingMessage(params: {
       const reply = "🙌 ¡Claro! Vamos a retomarlo.\n\nElige una opción:";
       await sendText(waId, reply, { senderPhoneNumberId: inboundPhoneNumberId });
       await saveOutgoingMessage({ waId, text: reply });
+      // Un solo arreglo para el envío y para el historial, así el historial nunca muestra un botón que no se mandó
+      const retomarButtons = [{ id: "NAV_MENU", title: "Menú" }, ...preSolicitudButtons()];
       const apiRes = await sendButtons(
         waId,
         "Selecciona:",
-        [
-          { id: "NAV_MENU", title: "Menú" },
-          { id: "MENU_PRE", title: "Pre-solicitud ✅" }
-        ],
+        retomarButtons,
         { senderPhoneNumberId: inboundPhoneNumberId }
       );
       const outId = apiRes?.messages?.[0]?.id;
       await saveOutgoingMessage({
         waId,
-        text: formatInteractive("Selecciona:", [
-          { id: "NAV_MENU", title: "Menú" },
-          { id: "MENU_PRE", title: "Pre-solicitud ✅" }
-        ]),
+        text: formatInteractive("Selecciona:", retomarButtons),
         messageId: outId,
         type: "interactive"
       });
@@ -590,24 +593,22 @@ export async function processIncomingMessage(params: {
   await updateConversationState(waId, { lastIntent: intent });
 
   if (!stage.startsWith("ENGAGE") && !stage.startsWith("PRE_SOLICITUD")) {
+    // Un solo arreglo para el envío y para el historial, así el historial nunca muestra un botón que no se mandó
+    const nextStepButtons = [
+      ...preSolicitudButtons(),
+      { id: "MENU_FAQ", title: "Preguntas 📌" },
+      { id: "NAV_MENU", title: "Menú" }
+    ];
     const apiRes = await sendButtons(
       waId,
       "¿Qué quieres hacer ahora?",
-      [
-        { id: "MENU_PRE", title: "Pre-solicitud ✅" },
-        { id: "MENU_FAQ", title: "Preguntas 📌" },
-        { id: "NAV_MENU", title: "Menú" }
-      ],
+      nextStepButtons,
       { senderPhoneNumberId: inboundPhoneNumberId }
     );
     const outId = apiRes?.messages?.[0]?.id;
     await saveOutgoingMessage({
       waId,
-      text: formatInteractive("¿Qué quieres hacer ahora?", [
-        { id: "MENU_PRE", title: "Pre-solicitud ✅" },
-        { id: "MENU_FAQ", title: "Preguntas 📌" },
-        { id: "NAV_MENU", title: "Menú" }
-      ]),
+      text: formatInteractive("¿Qué quieres hacer ahora?", nextStepButtons),
       messageId: outId,
       type: "interactive"
     });

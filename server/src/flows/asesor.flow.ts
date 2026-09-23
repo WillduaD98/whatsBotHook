@@ -1,17 +1,14 @@
 // Flujo de "asesor" (estado ASESOR/HUMANO): mientras la conversación está en este estado,
 // el bot NO responde automáticamente salvo un puñado de escapes explícitos (menú, FAQ,
 // pre-solicitud, (des)suscripción). Invocado desde webhookController cuando stage === "ASESOR".
-import { CONSENT_BODY_TEXT, CONSENT_BUTTONS, sendConsentButtons, sendText } from "../services/whatsapp.service.js";
+import { sendText } from "../services/whatsapp.service.js";
 import { saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
 import { detectIntent } from "../services/router.service.js";
+import { enterPreSolicitud } from "./preSolicitud.flow.js";
 
 type SendOpts = { senderPhoneNumberId?: string | undefined };
 
 export type AsesorFlowResult = { handled: boolean; goToMainMenu?: boolean; goToFaqMenu?: boolean };
-
-function formatInteractiveForLog(body: string, buttons: Array<{ id: string; title: string }>): string {
-  return `${body}\n\nOpciones: ${buttons.map((b) => b.title).join(" | ")}`;
-}
 
 // Máquina de estados de ASESOR. Se invoca solo cuando stage === "ASESOR".
 export async function handleAsesorFlow(params: {
@@ -34,10 +31,11 @@ export async function handleAsesorFlow(params: {
     return { handled: true, goToFaqMenu: true };
   }
   if (interactiveBtnId === "MENU_PRE") {
-    await updateConversationState(waId, { stage: "PRE_SOLICITUD:aviso_privacidad", lastIntent: "PRE_SOLICITUD" });
-    const apiRes = await sendConsentButtons(waId, opts);
-    const outId = apiRes?.messages?.[0]?.id;
-    await saveOutgoingMessage({ waId, text: formatInteractiveForLog(CONSENT_BODY_TEXT, CONSENT_BUTTONS), messageId: outId, type: "interactive" });
+    // Se usa la misma entrada que el resto del bot, para que aquí también aplique la bandera
+    // PRE_SOLICITUD_ENABLED. No se pasan slots: los slots de la conversación se reinician a propósito
+    // (decisión del usuario: entrar a pre-solicitud desde ASESOR es un reinicio intencional del cliente;
+    // si hace falta, el estado se corrige desde el panel).
+    await enterPreSolicitud(waId, opts);
     return { handled: true };
   }
 

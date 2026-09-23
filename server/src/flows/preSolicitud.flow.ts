@@ -6,6 +6,9 @@ import { sendText, sendButtons, sendConsentButtons, CONSENT_BODY_TEXT, CONSENT_B
 import { upsertConversation, saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
 import { cityTokens, tryMatchCoverageCity, tryMatchPueblaColonia, PUEBLA_COVERAGE_COLONIAS } from "../services/coverage.service.js";
 import { classifyCoords, isValidCoords } from "../services/geo.service.js";
+import { env } from "../config/env.js";
+
+const PRE_SOLICITUD_NO_DISPONIBLE_TEXT = "La pre-solicitud no está disponible por el momento. Puedes elegir otra opción del menú.";
 
 type SendOpts = { senderPhoneNumberId?: string | undefined };
 
@@ -31,6 +34,19 @@ export async function enterPreSolicitud(
   waId: string,
   opts?: { slots?: any; senderPhoneNumberId?: string | undefined }
 ): Promise<void> {
+  // Pre-solicitud apagada (PRE_SOLICITUD_ENABLED=0): no se deja entrar y el stage no cambia.
+  // Aquí pasan todas las entradas nuevas (menú, texto e intent, y el botón desde ASESOR); los flujos
+  // que ya iban a medias no pasan por aquí, así que terminan normal.
+  if (!env.PRE_SOLICITUD_ENABLED) {
+    await sendText(waId, PRE_SOLICITUD_NO_DISPONIBLE_TEXT, { senderPhoneNumberId: opts?.senderPhoneNumberId });
+    await saveOutgoingMessage({ waId, text: PRE_SOLICITUD_NO_DISPONIBLE_TEXT });
+    // lastIntent vuelve a 'SALUDO' (sin tocar el stage) porque el controller manda aquí toda conversación con
+    // lastIntent 'PRE_SOLICITUD', y ese chequeo va antes del saludo y del menú. Sin este reinicio, cada mensaje,
+    // incluso "hola", recibiría "no disponible" para siempre y el cliente nunca llegaría al menú.
+    await updateConversationState(waId, { lastIntent: "SALUDO" });
+    return;
+  }
+
   await updateConversationState(waId, {
     stage: "PRE_SOLICITUD:aviso_privacidad",
     lastIntent: "PRE_SOLICITUD",

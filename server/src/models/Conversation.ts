@@ -47,6 +47,10 @@ const ConversationSchema = new mongoose.Schema(
         noCoverageLocation: {
             type: Object,
             default: null
+        },
+        clienteVerificado: {
+            type: Boolean,
+            default: false // true cuando el cliente confirmó su número de crédito y su nombre; se muestra como distintivo en el panel
         }
     },
     { timestamps: true }    

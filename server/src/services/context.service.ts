@@ -91,7 +91,7 @@ export async function getRecentMessages(waId: string, limit = 15) {
 }
 
 // Actualiza el estado de la conversación (etapa, último intent, slots) mediante un $set parcial
-export async function updateConversationState(waId: string, patch: Partial<{ stage: string; lastIntent: string; slots: any; verificationStatus: string; subscriptionStatus: string; subscriptionOfferPending: boolean; noCoverageLocation: any }>) {
+export async function updateConversationState(waId: string, patch: Partial<{ stage: string; lastIntent: string; slots: any; verificationStatus: string; subscriptionStatus: string; subscriptionOfferPending: boolean; noCoverageLocation: any; clienteVerificado: boolean }>) {
   // Normaliza el waId para localizar la conversación correcta
   const id = normalizeTo(waId);
   // Lee el estado previo para poder loguear el cambio

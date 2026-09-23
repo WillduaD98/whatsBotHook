@@ -5,6 +5,7 @@ export interface Conversation {
     lastIntent: string;
     verificationStatus?: string; // e.g. "PRE_SOLICITUD_COMPLETA"
     subscriptionStatus?: string; // e.g. "SUSCRITO"
+    clienteVerificado?: boolean; // true si confirmó número de crédito y nombre; en conversaciones viejas llega undefined
     lastMessageText?: string;
     lastMessageType?: string;
     lastMessageDirection?: string;

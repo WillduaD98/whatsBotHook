@@ -272,6 +272,12 @@ export async function handleClienteFlow(params: {
         return { handled: true };
       }
 
+      // Aquí el cliente ya confirmó su número de crédito (existe y sigue activo) y su nombre, así que se
+      // marca como verificado. Se hace antes de separar "Datos para pagar" y "Ya pagué" para que quede
+      // marcado en los dos caminos, y antes de mandar cualquier mensaje por si el envío falla.
+      // Es permanente: salir al menú o la revisión del asesor no lo borran (se muestra en el panel).
+      await updateConversationState(waId, { clienteVerificado: true });
+
       // Las conversaciones que ya iban a medio flujo antes de este cambio no traen purpose:
       // se tratan como "datos_pago", que era el único camino que existía.
       const purpose: ClientePurpose = clienteSlots.purpose ?? "datos_pago";

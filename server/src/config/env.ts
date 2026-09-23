@@ -22,6 +22,7 @@ type Env = {
     AUTH_PASSWORD_PEPPER?: string;
     JWT_SECRET: string;
     CONTACTO_TEL: string;
+    PRE_SOLICITUD_ENABLED: boolean;
 };
 
 const base = {
@@ -34,7 +35,12 @@ const base = {
     MONGODB_URI : reqEnv('MONGODB_URI'),
     AUTH_USERNAME: reqEnv('AUTH_USERNAME'),
     JWT_SECRET: reqEnv('JWT_SECRET'),
-    CONTACTO_TEL: process.env.CONTACTO_TEL || ''
+    CONTACTO_TEL: process.env.CONTACTO_TEL || '',
+    // Bandera para apagar la pre-solicitud sin tocar código: solo bloquea entradas NUEVAS al flujo;
+    // quien ya va a medias termina normal. Se apaga ÚNICAMENTE con el valor exacto '0'
+    // (PRE_SOLICITUD_ENABLED=0). Si la variable no existe, o tiene cualquier otro valor ("false", "no"...),
+    // queda encendida, para que nadie la apague sin querer por no haberla definido en Render.
+    PRE_SOLICITUD_ENABLED: process.env.PRE_SOLICITUD_ENABLED !== '0'
 } as const;
 
 export const env: Env = {

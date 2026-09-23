@@ -126,6 +126,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ onSelectConversation, selected
                 {conv.subscriptionStatus === 'SUSCRITO' && (
                   <span className="mini-badge mini-badge--sub">🔔 Suscrito</span>
                 )}
+                {/* En conversaciones viejas el campo no existe y llega undefined (el endpoint no aplica el valor
+                    por defecto false). Se compara con === true para dejar explícito que solo se muestra si es true */}
+                {conv.clienteVerificado === true && (
+                  <span className="mini-badge mini-badge--cliente">👤 Cliente</span>
+                )}
               </div>
             </div>
           </div>
