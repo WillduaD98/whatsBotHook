@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { rateLimitByKey } from "../middleware/rateLimit.js";
-import { waIdFromBody } from "../services/waid.service.js";
+// import { rateLimitByKey } from "../middleware/rateLimit.js";
+// import { waIdFromBody } from "../services/waid.service.js";
 import { handleWebhookGet, handleWebhookPost } from "../controllers/webhookController.js";
 import { apiRouter } from "./api/index.js";
 import { verifyMetaSignature } from "../middleware/verifyMetaSignature.js";
@@ -15,10 +15,10 @@ webhookRouter.use("/api", apiRouter);
 webhookRouter.get("/webhook", handleWebhookGet);
 
 // POST /webhook → recepción de mensajes entrantes
-// Aplica seguridad (firma Meta) + rate limit por waId, y delega al controlador
+// Aplica seguridad (firma Meta) , y delega al controlador
+//Se elimina Ratelimit por ser una fuente confiable (META)
 webhookRouter.post(
   "/webhook",
   ...(process.env.NODE_ENV === "production" ? [verifyMetaSignature] : []),
-  rateLimitByKey({ windowMs: 60_000, max: 15, keyFn: waIdFromBody as any }),
   handleWebhookPost
 );
