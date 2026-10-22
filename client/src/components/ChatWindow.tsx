@@ -557,7 +557,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             </div>
             <div style={{ marginTop: '10px' }}>
               <div style={{ marginBottom: '8px', color: '#576071', fontSize: '0.9em' }}>
-                Número que se pondrá en la plantilla: {conversation?.waId}
+                Se enviará el video a: {conversation?.waId}
               </div>
               <input
                 type="file"

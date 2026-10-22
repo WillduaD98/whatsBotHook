@@ -67,8 +67,7 @@ async function saveTemplateHeaderCopy(file: { originalname: string; mimetype: st
 }
 
 // POST /api/chats/:waId/payment-proof-example
-// Manda la plantilla ejemplo_comprobante_pago con el video que se eligió en el panel.
-// {{Numero}} se llena con el teléfono del cliente (su waId), así el operador no lo escribe a mano.
+// Manda la plantilla ejemplo_comprobante_pago con el video que se eligió en el panel (sin variables).
 export const sendPaymentProofExample = async (req: Request, res: Response) => {
     try {
         const waId = String(req.params?.waId || '').trim();
@@ -84,7 +83,7 @@ export const sendPaymentProofExample = async (req: Request, res: Response) => {
 
         // 2) Enviar la plantilla y 3) guardar la copia local del video. Son independientes, van en paralelo.
         const [apiRes, mediaUrl] = await Promise.all([
-            sendTemplateEjemploComprobantePago(waId, { mediaId: uploaded.id, numero: waId }),
+            sendTemplateEjemploComprobantePago(waId, uploaded.id),
             saveTemplateHeaderCopy(file)
         ]);
 
@@ -93,15 +92,12 @@ export const sendPaymentProofExample = async (req: Request, res: Response) => {
         const messageId = apiRes.messages?.[0]?.id;
         const savedMessage = await saveOutgoingMessage({
             waId,
-            text: `📹 Video: cómo hacer válido tu comprobante de pago (Número: ${waId})`,
+            text: '📹 Video: cómo hacer válido tu comprobante de pago',
             ...(messageId ? { messageId } : {}),
             type: 'template',
             mediaUrl,
             mimeType: file.mimetype,
-            metadata: {
-                template: 'ejemplo_comprobante_pago',
-                variables: { numero: waId }
-            }
+            metadata: { template: 'ejemplo_comprobante_pago' }
         });
 
         return res.status(200).json(savedMessage);

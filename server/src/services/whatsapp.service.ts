@@ -189,19 +189,20 @@ export type WhatsAppSendResponse = {
 };
 
 // Envía la plantilla ejemplo_comprobante_pago: header con el VIDEO que explica cómo hacer válido
-// el comprobante de pago + body con {{Numero}} (el teléfono del cliente).
+// el comprobante de pago. La plantilla no tiene variables: mandarle un body con parámetros hace
+// que Meta la rechace (#132000), por eso solo va el header.
 // El video de muestra que se subió al crear la plantilla en Meta NO se reutiliza: solo sirvió para
 // que la aprobaran. Por eso cada envío debe traer su propio mediaId (ver uploadImageMedia).
 export async function sendTemplateEjemploComprobantePago(
   to: string,
-  data: { mediaId: string; numero: string },
+  mediaId: string,
   opts?: { senderPhoneNumberId?: string | undefined }
 ): Promise<WhatsAppSendResponse> {
   const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
   const url = urlTemplate(senderId);
   const toRaw = normalizeTo(to.trim());
 
-  console.log("[whatsapp] template ejemplo_comprobante_pago ->", { to: toRaw, senderId, mediaId: data.mediaId });
+  console.log("[whatsapp] template ejemplo_comprobante_pago ->", { to: toRaw, senderId, mediaId });
 
   const res = await axios.post<WhatsAppSendResponse>(
     url,
@@ -213,8 +214,7 @@ export async function sendTemplateEjemploComprobantePago(
         name: "ejemplo_comprobante_pago",
         language: { code: "es_MX" },
         components: [
-          { type: "header", parameters: [{ type: "video", video: { id: data.mediaId.trim() } }] },
-          { type: "body", parameters: [{ type: "text", text: data.numero.trim() }] }
+          { type: "header", parameters: [{ type: "video", video: { id: mediaId.trim() } }] }
         ]
       }
     },
