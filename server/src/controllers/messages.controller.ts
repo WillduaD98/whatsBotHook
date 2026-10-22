@@ -4,6 +4,8 @@ import { saveOutgoingMessage } from '../services/context.service.js';
 import {
     sendText,
     uploadWhatsAppMediaImage,
+    uploadImageMedia,
+    sendTemplateEjemploComprobantePago,
     sendTemplateConsejoSemanal,
     sendTemplateRecordatorioPago,
     sendTemplateRecordatorioPagoHoy,
@@ -54,6 +56,61 @@ export const sendMessage = async (req: Request, res: Response) => {
     }
 };
 
+// Guarda una copia local del header (imagen o video) de una plantilla enviada, para que el panel
+// pueda mostrar lo que se mandó. Meta no nos deja descargar después el archivo que le subimos.
+async function saveTemplateHeaderCopy(file: { originalname: string; mimetype: string; buffer: Buffer }) {
+    const uploadDir = resolveUploadsPath("template");
+    await fs.mkdir(uploadDir, { recursive: true });
+    const previewFilename = makeUploadFilename(file.originalname, file.mimetype, "template-header");
+    await fs.writeFile(path.join(uploadDir, previewFilename), file.buffer);
+    return `/uploads/template/${previewFilename}`;
+}
+
+// POST /api/chats/:waId/payment-proof-example
+// Manda la plantilla ejemplo_comprobante_pago con el video que se eligió en el panel.
+// {{Numero}} se llena con el teléfono del cliente (su waId), así el operador no lo escribe a mano.
+export const sendPaymentProofExample = async (req: Request, res: Response) => {
+    try {
+        const waId = String(req.params?.waId || '').trim();
+        // req.file lo llena templateVideoUploadMiddleware; ese middleware ya validó formato y tamaño.
+        const file = req.file;
+
+        if (!waId) return res.status(400).json({ message: 'waId is required' });
+        if (!file) return res.status(400).json({ message: 'headerVideo is required' });
+
+        // 1) Subir el video a Meta para obtener su mediaId (el envío de la plantilla lo exige).
+        const filename = makeUploadFilename(file.originalname, file.mimetype, "comprobante-pago-video");
+        const uploaded = await uploadImageMedia({ buffer: file.buffer, filename, mimeType: file.mimetype });
+
+        // 2) Enviar la plantilla y 3) guardar la copia local del video. Son independientes, van en paralelo.
+        const [apiRes, mediaUrl] = await Promise.all([
+            sendTemplateEjemploComprobantePago(waId, { mediaId: uploaded.id, numero: waId }),
+            saveTemplateHeaderCopy(file)
+        ]);
+
+        // 4) Registrar el mensaje saliente en la BD para que aparezca en el chat del panel.
+        //    El wamid solo se pasa si Meta lo devolvió; si no, saveOutgoingMessage genera uno propio.
+        const messageId = apiRes.messages?.[0]?.id;
+        const savedMessage = await saveOutgoingMessage({
+            waId,
+            text: `📹 Video: cómo hacer válido tu comprobante de pago (Número: ${waId})`,
+            ...(messageId ? { messageId } : {}),
+            type: 'template',
+            mediaUrl,
+            mimeType: file.mimetype,
+            metadata: {
+                template: 'ejemplo_comprobante_pago',
+                variables: { numero: waId }
+            }
+        });
+
+        return res.status(200).json(savedMessage);
+    } catch (error) {
+        console.error('Error sending ejemplo_comprobante_pago template:', error);
+        return res.status(500).json({ message: 'Error sending payment proof example template' });
+    }
+};
+
 // POST /api/chats/:waId/weekly-tip
 export const sendWeeklyTip = async (req: Request, res: Response) => {
     try {
@@ -81,12 +138,7 @@ export const sendWeeklyTip = async (req: Request, res: Response) => {
         const apiRes = await sendTemplateConsejoSemanal(waId, mediaId);
         const messageId = apiRes?.messages?.[0]?.id;
 
-        const uploadDir = resolveUploadsPath("template");
-        await fs.mkdir(uploadDir, { recursive: true });
-        const previewFilename = makeUploadFilename(file.originalname, file.mimetype, "template-header");
-        const previewFullPath = path.join(uploadDir, previewFilename);
-        await fs.writeFile(previewFullPath, file.buffer);
-        const mediaUrl = `/uploads/template/${previewFilename}`;
+        const mediaUrl = await saveTemplateHeaderCopy(file);
 
         const savedMessage = await saveOutgoingMessage({
             waId,

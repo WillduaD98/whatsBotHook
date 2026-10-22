@@ -32,6 +32,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   const [payError, setPayError] = useState<string | null>(null);
   const [payForm, setPayForm] = useState({ numero: '', nombre: '', fecha: '', monto: '', clabe: '', referencia: '', tipo: 'antes' });
   const [panelOpen, setPanelOpen] = useState(false);
+  // Estado de la ventana para mandar la plantilla ejemplo_comprobante_pago (video para clientes nuevos)
+  const [proofVideoOpen, setProofVideoOpen] = useState(false);
+  const [proofVideoFile, setProofVideoFile] = useState<File | null>(null);
+  const [proofVideoSending, setProofVideoSending] = useState(false);
+  const [proofVideoError, setProofVideoError] = useState<string | null>(null);
 
   useEffect(() => {
     if (conversation) {
@@ -186,6 +191,47 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
           setWeeklyTipError(message);
       } finally {
           setWeeklyTipSending(false);
+      }
+  };
+
+  // Sube el video elegido y manda la plantilla ejemplo_comprobante_pago a este chat.
+  // El {{Numero}} de la plantilla lo llena el servidor con el teléfono del cliente.
+  const handleSendProofVideo = async () => {
+      if (!conversation || proofVideoSending) return;
+      if (!proofVideoFile) {
+          setProofVideoError('Selecciona el video (MP4, máx. 16MB)');
+          return;
+      }
+
+      setProofVideoSending(true);
+      setProofVideoError(null);
+      try {
+          const body = new FormData();
+          body.append('headerVideo', proofVideoFile, proofVideoFile.name);
+          const res = await apiFetch(`/api/chats/${conversation.waId}/payment-proof-example`, {
+              method: 'POST',
+              token: authToken,
+              body
+          });
+
+          if (res.status === 401) {
+              onUnauthorized();
+              return;
+          }
+
+          if (!res.ok) {
+              throw new Error(await res.text());
+          }
+
+          const newMsg = await res.json();
+          setMessages(prev => sortDedupe([...prev, newMsg]));
+          setProofVideoFile(null);
+          setProofVideoOpen(false);
+      } catch (e: unknown) {
+          const message = e instanceof Error ? e.message : 'Error al enviar el video del comprobante';
+          setProofVideoError(message);
+      } finally {
+          setProofVideoSending(false);
       }
   };
 
@@ -392,6 +438,20 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             >
               💳 Recordatorio de pago
             </button>
+            <button
+              onClick={() => { setProofVideoError(null); setProofVideoOpen(true); }}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.9em'
+              }}
+              title="Enviar plantilla ejemplo_comprobante_pago"
+            >
+              📹 Video comprobante
+            </button>
           </div>
         </div>
       )}
@@ -469,6 +529,68 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#008069', color: '#fff', cursor: 'pointer' }}
               >
                 {weeklyTipSending ? 'Enviando...' : 'Enviar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {proofVideoOpen && (
+        <div
+          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px', zIndex: 1000 }}
+          onClick={() => { if (!proofVideoSending) setProofVideoOpen(false); }}
+        >
+          <div
+            style={{ width: '100%', maxWidth: '520px', background: '#fff', borderRadius: '10px', border: '1px solid rgba(0,0,0,0.1)', padding: '14px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+              <div style={{ fontWeight: 700 }}>📹 Video: cómo hacer válido el comprobante (plantilla)</div>
+              <button
+                onClick={() => setProofVideoOpen(false)}
+                disabled={proofVideoSending}
+                style={{ border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '18px' }}
+                aria-label="Cerrar"
+              >
+                ✕
+              </button>
+            </div>
+            <div style={{ marginTop: '10px' }}>
+              <div style={{ marginBottom: '8px', color: '#576071', fontSize: '0.9em' }}>
+                Número que se pondrá en la plantilla: {conversation?.waId}
+              </div>
+              <input
+                type="file"
+                accept="video/mp4,video/3gpp"
+                onChange={(e) => setProofVideoFile(e.target.files?.[0] || null)}
+                disabled={proofVideoSending}
+                style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #ddd' }}
+              />
+              {proofVideoFile && (
+                <div style={{ marginTop: '8px', color: '#576071', fontSize: '0.9em' }}>
+                  Seleccionado: {proofVideoFile.name}
+                </div>
+              )}
+              {proofVideoError && (
+                <div style={{ marginTop: '8px', color: '#b00020', fontSize: '0.9em' }}>
+                  {proofVideoError}
+                </div>
+              )}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '12px' }}>
+              <button
+                onClick={() => setProofVideoOpen(false)}
+                disabled={proofVideoSending}
+                style={{ padding: '8px 12px', borderRadius: '8px', border: '1px solid #ccc', background: '#fff', cursor: 'pointer' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSendProofVideo}
+                disabled={proofVideoSending || !proofVideoFile}
+                style={{ padding: '8px 12px', borderRadius: '8px', border: 'none', background: '#008069', color: '#fff', cursor: 'pointer' }}
+              >
+                {proofVideoSending ? 'Enviando...' : 'Enviar'}
               </button>
             </div>
           </div>
@@ -676,7 +798,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                     </div>
                   </div>
                 )}
-                {msg.type === 'template' && msg.mediaUrl && (
+                {/* Plantilla con header de VIDEO (ejemplo_comprobante_pago): se reproduce aquí mismo */}
+                {msg.type === 'template' && msg.mediaUrl && msg.mimeType?.startsWith('video/') && (
+                  <div className="message-media">
+                    <video
+                      src={buildApiUrl(msg.mediaUrl)}
+                      controls
+                      preload="metadata"
+                      style={{ maxWidth: '100%', borderRadius: '4px' }}
+                    />
+                    <div style={{ marginTop: '8px', padding: '8px', border: '1px solid #e9edef', borderRadius: '8px', background: '#fff' }}>
+                      <div style={{ fontWeight: 600 }}>Plantilla: ejemplo_comprobante_pago (es_MX)</div>
+                    </div>
+                  </div>
+                )}
+                {/* Plantilla con header de IMAGEN (consejo_semanal_v1) */}
+                {msg.type === 'template' && msg.mediaUrl && !msg.mimeType?.startsWith('video/') && (
                   <div className="message-media">
                     {msg.mediaUrl && (
                       <>

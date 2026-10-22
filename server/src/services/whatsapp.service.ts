@@ -183,6 +183,55 @@ export async function sendTemplateConsejoSemanal(
   return data;
 }
 
+// Lo que Graph responde al enviar un mensaje; solo nos interesa el wamid (id del mensaje en WhatsApp).
+export type WhatsAppSendResponse = {
+  messages?: Array<{ id: string }>;
+};
+
+// Envía la plantilla ejemplo_comprobante_pago: header con el VIDEO que explica cómo hacer válido
+// el comprobante de pago + body con {{Numero}} (el teléfono del cliente).
+// El video de muestra que se subió al crear la plantilla en Meta NO se reutiliza: solo sirvió para
+// que la aprobaran. Por eso cada envío debe traer su propio mediaId (ver uploadImageMedia).
+export async function sendTemplateEjemploComprobantePago(
+  to: string,
+  data: { mediaId: string; numero: string },
+  opts?: { senderPhoneNumberId?: string | undefined }
+): Promise<WhatsAppSendResponse> {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const url = urlTemplate(senderId);
+  const toRaw = normalizeTo(to.trim());
+
+  console.log("[whatsapp] template ejemplo_comprobante_pago ->", { to: toRaw, senderId, mediaId: data.mediaId });
+
+  const res = await axios.post<WhatsAppSendResponse>(
+    url,
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: {
+        name: "ejemplo_comprobante_pago",
+        language: { code: "es_MX" },
+        components: [
+          { type: "header", parameters: [{ type: "video", video: { id: data.mediaId.trim() } }] },
+          { type: "body", parameters: [{ type: "text", text: data.numero.trim() }] }
+        ]
+      }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const wamid = res.data.messages?.[0]?.id;
+  if (wamid) console.log("[whatsapp] sent template ejemplo_comprobante_pago wamid:", wamid);
+  return res.data;
+}
+
 export async function uploadWhatsAppMediaImage(
   fileOrUrl:
     | { buffer: Buffer; filename: string; mimeType: string }
@@ -217,6 +266,8 @@ export async function uploadWhatsAppMediaImage(
   return res.id;
 }
 
+// Sube un archivo a Meta (/media) y devuelve su mediaId. Aunque se llama "Image", sirve para
+// cualquier tipo (imagen o video) porque manda el mimeType que se le pase.
 export async function uploadImageMedia(
   file: { buffer: Buffer; filename: string; mimeType: string },
   opts?: { senderPhoneNumberId?: string | undefined }
