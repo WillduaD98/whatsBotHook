@@ -12,7 +12,7 @@ import { CLIENTE_SOY_BUTTON, sendButtons, sendText } from "../services/whatsapp.
 // Servicios de enrutamiento semántico: detección de intención y construcción de respuestas
 import { detectIntent, buildReply, isClienteText } from "../services/router.service.js";
 // Flujo de cliente: máquina de estados del menú de cliente (datos para pagar / menú principal)
-import { enterClienteMenu, handleClienteFlow } from "../flows/cliente.flow.js";
+import { CLIENTE_STAGE_COMPROBANTE_PENDIENTE, enterClienteMenu, handleClienteFlow } from "../flows/cliente.flow.js";
 // Flujo de consejo semanal: detección de la acción y envío del consejo activo + imágenes
 import { weeklyTipActionFromMessage, sendActiveWeeklyTipImages } from "../flows/weeklyTip.flow.js";
 // Flujo de ubicación: procesa mensajes de tipo "location" y clasifica cobertura por coordenadas
@@ -20,8 +20,8 @@ import { handleLocationFlow } from "../flows/location.flow.js";
 // Flujo de asesor: estado ASESOR/HUMANO donde el bot no responde automáticamente salvo escapes
 import { enterAsesor, handleAsesorFlow } from "../flows/asesor.flow.js";
 // Piloto: botones de la plantilla due_date_action, ligados por waId
-import { handlePilotoPagoBoton } from "../flows/pilotoPago.flow.js";
-import { pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from "../mappers/pilotoBoton.mapper.js";
+import { handlePilotoPagoBoton, recibirComprobanteLigado } from "../flows/pilotoPago.flow.js";
+import { esComprobanteAutomatico, pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from "../mappers/pilotoBoton.mapper.js";
 // Piloto: flujo de renovación (botón del gancho o texto "renovar") → monto, plazo, cuota y cita
 import { enterRenovacion, handleRenovacionFlow } from "../flows/renovacion.flow.js";
 // Flujo de FAQ: menú de preguntas frecuentes (2 páginas) y respuestas a cada opción
@@ -333,10 +333,17 @@ export async function processIncomingMessage(params: {
   // --- BOTONES DE PLANTILLA DEL PILOTO (due_date_action y prox_credito_gancho) ---
   // Van antes de ASESOR y de cualquier stage: tocar un botón de plantilla es una acción explícita del cliente
   // sobre un mensaje nuevo, así que se atiende aunque la conversación esté con un asesor o a medio flujo.
-  const pilotoPagoBoton = pilotoPagoBotonFromMessage(type, interactiveBtnTitle ?? interactiveBtnId);
+  const pilotoPagoBoton = pilotoPagoBotonFromMessage(type, interactiveBtnTitle ?? interactiveBtnId, interactiveBtnId);
   if (pilotoPagoBoton) {
     await handlePilotoPagoBoton({ waId, boton: pilotoPagoBoton, slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId });
     return;
+  }
+  // Comprobante automático: foto/PDF de un cliente ligado por waId (si no está ligado, sigue el flujo normal).
+  if (mediaUrl && esComprobanteAutomatico({ type, mediaUrl, stage, stageComprobantePendiente: CLIENTE_STAGE_COMPROBANTE_PENDIENTE })) {
+    const recibido = await recibirComprobanteLigado({
+      waId, type, mediaUrl, mimeType, slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId
+    });
+    if (recibido) return;
   }
   const renovacionEntrada = renovacionEntradaFromMessage(type, interactiveBtnTitle ?? interactiveBtnId, text);
   if (renovacionEntrada === "PLANTILLA") {

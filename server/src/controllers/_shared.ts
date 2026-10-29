@@ -1,6 +1,5 @@
-export function sleep(ms: number) {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-}
+// sleep vive en utils/ para que también lo usen los flujos; se re-exporta para no cambiar a quien ya lo importa de aquí.
+export { sleep } from "../utils/sleep.js";
 
 export function parseBoolean(v: unknown): boolean {
     if (v === true) return true;

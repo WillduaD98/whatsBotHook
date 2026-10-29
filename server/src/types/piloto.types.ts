@@ -30,3 +30,12 @@ export type GanchoImagen = {
   // Ruta pública con ?v=<fecha de modificación> para que el panel no muestre una versión vieja en caché.
   url: string;
 };
+
+// Lo necesario para decidir si una foto/PDF entrante se toma como comprobante en automático.
+export type ComprobanteAutomaticoInput = {
+  type: string;
+  mediaUrl: string | undefined;
+  stage: string;
+  // Stage CLIENTE:comprobante_pendiente (se pasa para que el mapper no dependa del flujo de cliente).
+  stageComprobantePendiente: string;
+};

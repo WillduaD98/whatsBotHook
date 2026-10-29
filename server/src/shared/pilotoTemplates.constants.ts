@@ -25,3 +25,7 @@ export const GANCHO_IMAGEN_MAX_BYTES = 5 * 1024 * 1024;
 export function isGanchoImagenMimeType(value: string): value is GanchoImagenMimeType {
   return value in GANCHO_IMAGEN_FORMATOS;
 }
+
+// Botón interactivo que el bot manda unos segundos después de los datos de pago (Meta: título ≤ 20 caracteres).
+// Al tocarlo hace lo mismo que "Ya pagué": pide la foto o PDF del comprobante, con el crédito ligado por waId.
+export const PILOTO_MANDAR_COMPROBANTE_BOTON = { id: "PILOTO_MANDAR_COMPROBANTE", title: "🧾 Mandar comprobante" } as const;
