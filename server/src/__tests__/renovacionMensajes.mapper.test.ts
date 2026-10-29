@@ -37,20 +37,30 @@ describe('buildPlazoList', () => {
 });
 
 describe('textos', () => {
-  it('cuota con centavos cuando los hay y el gancho de nivel acordado', () => {
+  it('el cálculo va un dato por línea, con centavos cuando los hay', () => {
     const text = buildCuotaText({ monto: 5000, plazoSemanas: 12, cuotaSemanal: 541.67 });
-    expect(text).toContain('Con *$5,000* a *12 semanas*, tu tanda quedaría en *~$541.67/semana* (estimado).');
-    expect(text).toContain('¡Continúa creciendo tu racha! Con 2 créditos más con buenas rachas subes al siguiente nivel');
+    expect(text).toContain('💰 Monto: *$5,000*\n📆 Plazo: *12 semanas*\n💵 Tu tanda: *~$541.67/semana*');
+  });
+
+  it('cada mención de racha lleva 🔥', () => {
+    const text = buildCuotaText({ monto: 5000, plazoSemanas: 12, cuotaSemanal: 541.67 });
+    expect(text).toContain('🔥 ¡Continúa creciendo tu racha! Con 2 créditos más con buenas rachas 🔥 subes al siguiente nivel');
   });
 
   it('el rebote por límite le dice cuál es su límite', () => {
     expect(buildMontoExcedeText(10000)).toBe('Tu límite es *$10,000*, dame uno igual o menor 🙏');
   });
 
-  it('la confirmación repite exactamente lo que se agendó', () => {
+  it('la confirmación repite exactamente lo que se agendó, un dato por línea', () => {
     expect(buildCitaAgendadaText({ monto: 8000, plazoSemanas: 8, cuotaSemanal: 1200 })).toContain(
-      'con *$8,000* a *8 semanas* (cuota ~$1,200)'
+      '💰 Monto: *$8,000*\n📆 Plazo: *8 semanas*\n💵 Tu tanda: *~$1,200/semana*'
     );
+  });
+
+  it('el recordatorio del pago aclara que si ya pagó, haga caso omiso', () => {
+    const text = buildCitaAgendadaText({ monto: 8000, plazoSemanas: 8, cuotaSemanal: 1200 });
+    expect(text).toContain('Si ya hiciste tu pago, haz caso omiso.');
+    expect(text).not.toContain('Primero completa tu pago de hoy');
   });
 
   it('la oferta (entrada por "renovar") resume racha en pagos, nivel, límite y plazos', () => {

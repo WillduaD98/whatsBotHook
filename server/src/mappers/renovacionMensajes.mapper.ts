@@ -23,7 +23,7 @@ export const PROGRAMAR_BOTONES: RenovacionBoton[] = [RENOVACION_BOTONES.PROGRAMA
 export const CITA_BOTONES: RenovacionBoton[] = [RENOVACION_BOTONES.AGENDAR, RENOVACION_BOTONES.OTRO_DIA];
 
 const GANCHO_NIVEL =
-  "¡Continúa creciendo tu racha! Con 2 créditos más con buenas rachas subes al siguiente nivel y puedes desbloquear mejores opciones.";
+  "🔥 ¡Continúa creciendo tu racha! Con 2 créditos más con buenas rachas 🔥 subes al siguiente nivel y puedes desbloquear mejores opciones.";
 
 export const SALIDA_TEXT = "Va, cuando quieras escribe *renovar* y lo retomamos 👌";
 
@@ -80,10 +80,19 @@ export function buildPlazoList(cliente: RenovacionCliente, monto: number): Whats
   };
 }
 
+// Monto, plazo y cuota, un dato por línea para que se lea de un vistazo en WhatsApp.
+function buildResumenSolicitud(solicitud: RenovacionSolicitud): string {
+  return (
+    `💰 Monto: *${formatPesos(solicitud.monto)}*\n` +
+    `📆 Plazo: *${solicitud.plazoSemanas} semanas*\n` +
+    `💵 Tu tanda: *~${formatPesos(solicitud.cuotaSemanal)}/semana*`
+  );
+}
+
 export function buildCuotaText(solicitud: RenovacionSolicitud): string {
   return (
-    `Con *${formatPesos(solicitud.monto)}* a *${solicitud.plazoSemanas} semanas*, tu tanda quedaría en ` +
-    `*~${formatPesos(solicitud.cuotaSemanal)}/semana* (estimado).\n\n` +
+    `🧮 *Tu cálculo (estimado)*\n\n` +
+    `${buildResumenSolicitud(solicitud)}\n\n` +
     `${GANCHO_NIVEL}\n\n` +
     `¿Quieres programar tu renovación?`
   );
@@ -91,8 +100,9 @@ export function buildCuotaText(solicitud: RenovacionSolicitud): string {
 
 export function buildCitaAgendadaText(solicitud: RenovacionSolicitud): string {
   return (
-    `¡Listo! 🙌 En unos momentos un asesor confirmará tu cita de mañana con *${formatPesos(solicitud.monto)}* ` +
-    `a *${solicitud.plazoSemanas} semanas* (cuota ~${formatPesos(solicitud.cuotaSemanal)}).\n\n` +
-    `Primero completa tu pago de hoy 💪`
+    `¡Listo! 🙌 En unos momentos un asesor confirmará tu cita de mañana con:\n\n` +
+    `${buildResumenSolicitud(solicitud)}\n\n` +
+    `Recuerda completar tu pago de hoy 💪\n` +
+    `Si ya hiciste tu pago, haz caso omiso.`
   );
 }
