@@ -4,6 +4,9 @@ import axios from "axios";
 import { env } from "../config/env.js";
 // Normaliza el número de destino al formato esperado por la API
 import { normalizeTo } from "./waid.service.js";
+import { toListInteractive } from "../mappers/whatsappList.mapper.js";
+import { toTemplateComponents } from "../mappers/whatsappTemplate.mapper.js";
+import type { WhatsAppListInput, WhatsAppTemplateInput } from "../types/whatsapp.types.js";
 
 export function urlTemplate(senderId: string) {
   return `https://graph.facebook.com/${env.GRAPH_VERSION}/${senderId}/messages`;
@@ -99,6 +102,69 @@ export async function sendButtons(
     }
   );
 
+  return res.data;
+}
+
+// Lista interactiva (botón que despliega opciones); se usa cuando hay más de 3 opciones, como los plazos.
+// Solo funciona dentro de la ventana de 24h; si Meta rechaza un límite (ej. title > 24), el error de axios sube tal cual.
+export async function sendList(
+  to: string,
+  list: WhatsAppListInput,
+  opts?: { senderPhoneNumberId?: string | undefined }
+): Promise<WhatsAppSendResponse> {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+
+  const res = await axios.post<WhatsAppSendResponse>(
+    urlTemplate(senderId),
+    {
+      messaging_product: "whatsapp",
+      to: normalizeTo(to),
+      type: "interactive",
+      interactive: toListInteractive(list)
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  return res.data;
+}
+
+// Envío genérico de una plantilla es_MX (header de imagen opcional + variables de texto del body).
+// Para plantillas nuevas: evita copiar el bloque de axios por cada una, como en las sendTemplate* de abajo.
+export async function sendTemplate(
+  to: string,
+  template: WhatsAppTemplateInput,
+  opts?: { senderPhoneNumberId?: string | undefined }
+): Promise<WhatsAppSendResponse> {
+  const senderId = opts?.senderPhoneNumberId ?? env.PHONE_NUMBER_ID;
+  const toRaw = normalizeTo(to.trim());
+
+  console.log(`[whatsapp] template ${template.name} ->`, { to: toRaw, senderId });
+
+  const res = await axios.post<WhatsAppSendResponse>(
+    urlTemplate(senderId),
+    {
+      messaging_product: "whatsapp",
+      to: toRaw,
+      type: "template",
+      template: { name: template.name, language: { code: "es_MX" }, components: toTemplateComponents(template) }
+    },
+    {
+      headers: {
+        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        "Content-Type": "application/json"
+      },
+      timeout: 10000
+    }
+  );
+
+  const wamid = res.data.messages?.[0]?.id;
+  if (wamid) console.log(`[whatsapp] sent template ${template.name} wamid:`, wamid);
   return res.data;
 }
 

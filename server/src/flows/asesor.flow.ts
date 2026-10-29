@@ -3,12 +3,21 @@
 // pre-solicitud, (des)suscripción). Invocado desde webhookController cuando stage === "ASESOR".
 import { sendText } from "../services/whatsapp.service.js";
 import { saveOutgoingMessage, updateConversationState } from "../services/context.service.js";
-import { detectIntent } from "../services/router.service.js";
+import { buildReply, detectIntent } from "../services/router.service.js";
 import { enterPreSolicitud } from "./preSolicitud.flow.js";
 
 type SendOpts = { senderPhoneNumberId?: string | undefined };
 
 export type AsesorFlowResult = { handled: boolean; goToMainMenu?: boolean; goToFaqMenu?: boolean };
+
+// Pasa la conversación a un humano: desde aquí el bot se queda callado salvo los escapes de handleAsesorFlow.
+// Entrada por texto (intención ASESOR) o por el botón "Necesito ayuda" de la plantilla del piloto.
+export async function enterAsesor(waId: string, opts?: SendOpts) {
+  await updateConversationState(waId, { stage: "ASESOR", lastIntent: "ASESOR" });
+  const reply = buildReply("ASESOR");
+  await sendText(waId, reply, opts);
+  await saveOutgoingMessage({ waId, text: reply });
+}
 
 // Máquina de estados de ASESOR. Se invoca solo cuando stage === "ASESOR".
 export async function handleAsesorFlow(params: {

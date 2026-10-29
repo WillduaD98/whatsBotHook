@@ -18,7 +18,12 @@ import { weeklyTipActionFromMessage, sendActiveWeeklyTipImages } from "../flows/
 // Flujo de ubicación: procesa mensajes de tipo "location" y clasifica cobertura por coordenadas
 import { handleLocationFlow } from "../flows/location.flow.js";
 // Flujo de asesor: estado ASESOR/HUMANO donde el bot no responde automáticamente salvo escapes
-import { handleAsesorFlow } from "../flows/asesor.flow.js";
+import { enterAsesor, handleAsesorFlow } from "../flows/asesor.flow.js";
+// Piloto: botones de la plantilla due_date_action, ligados por waId
+import { handlePilotoPagoBoton } from "../flows/pilotoPago.flow.js";
+import { pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from "../mappers/pilotoBoton.mapper.js";
+// Piloto: flujo de renovación (botón del gancho o texto "renovar") → monto, plazo, cuota y cita
+import { enterRenovacion, handleRenovacionFlow } from "../flows/renovacion.flow.js";
 // Flujo de FAQ: menú de preguntas frecuentes (2 páginas) y respuestas a cada opción
 import { sendFaqMenu, handleFaqFlow } from "../flows/faq.flow.js";
 // Flujo de engage: califica en 3 preguntas rápidas antes de mandar a Pre-Solicitud
@@ -325,6 +330,20 @@ export async function processIncomingMessage(params: {
     "*SUSCRIBIR* para activarte nuevamente.\n\n" +
     "🤝 Comunidad *Tanda Ya*";
 
+  // --- BOTONES DE PLANTILLA DEL PILOTO (due_date_action y prox_credito_gancho) ---
+  // Van antes de ASESOR y de cualquier stage: tocar un botón de plantilla es una acción explícita del cliente
+  // sobre un mensaje nuevo, así que se atiende aunque la conversación esté con un asesor o a medio flujo.
+  const pilotoPagoBoton = pilotoPagoBotonFromMessage(type, interactiveBtnTitle ?? interactiveBtnId);
+  if (pilotoPagoBoton) {
+    await handlePilotoPagoBoton({ waId, boton: pilotoPagoBoton, slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId });
+    return;
+  }
+  const renovacionEntrada = renovacionEntradaFromMessage(type, interactiveBtnTitle ?? interactiveBtnId, text);
+  if (renovacionEntrada === "PLANTILLA") {
+    await enterRenovacion(waId, { entrada: "PLANTILLA", slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId });
+    return;
+  }
+
   // --- ESTADO ASESOR (HUMANO) ---
   // Si el usuario ya está en estado ASESOR, el bot NO responde automáticamente.
   // Solo un humano debería intervenir.
@@ -366,6 +385,30 @@ export async function processIncomingMessage(params: {
   if (interactiveBtnId === "CLIENTE_SOY") {
     await enterClienteMenu(waId, { senderPhoneNumberId: inboundPhoneNumberId });
     return;
+  }
+
+  // --- FLUJO RENOVACIÓN (piloto): texto "renovar" (después de ASESOR, que no responde a texto) y sus stages ---
+  if (renovacionEntrada === "TEXTO") {
+    await enterRenovacion(waId, { entrada: "TEXTO", slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId });
+    return;
+  }
+  if (stage.startsWith("RENOVACION:")) {
+    const renovacionResult = await handleRenovacionFlow({
+      waId,
+      stage,
+      type,
+      text,
+      interactiveBtnId,
+      slots: conv?.slots,
+      senderPhoneNumberId: inboundPhoneNumberId
+    });
+    if (renovacionResult.goToMainMenu) {
+      await sendMainMenu();
+      return;
+    }
+    if (renovacionResult.handled) {
+      return;
+    }
   }
 
   if (stage.startsWith("CLIENTE:")) {
@@ -526,10 +569,7 @@ export async function processIncomingMessage(params: {
 
   // Si el usuario pide hablar con humano (ASESOR) y NO está en pre-solicitud (o incluso si lo está, prioridad alta)
   if (intent === "ASESOR" && !stage.startsWith("PRE_SOLICITUD")) {
-    await updateConversationState(waId, { stage: "ASESOR", lastIntent: "ASESOR" });
-    const reply = buildReply("ASESOR");
-    await sendText(waId, reply, { senderPhoneNumberId: inboundPhoneNumberId });
-    await saveOutgoingMessage({ waId, text: reply });
+    await enterAsesor(waId, { senderPhoneNumberId: inboundPhoneNumberId });
     return;
   }
 

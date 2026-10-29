@@ -304,6 +304,10 @@ body {
   bottom: 234px;
 }
 
+.floating-piloto-button {
+  bottom: 288px;
+}
+
 .stats-panel {
   flex: 1;
   min-width: 0;

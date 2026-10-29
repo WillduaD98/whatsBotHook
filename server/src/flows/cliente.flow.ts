@@ -99,6 +99,19 @@ function buildReferenciaMessage(referencia: string): string {
   return `Número de referencia (concepto): ${referencia}`;
 }
 
+// CLABE y referencia en mensajes separados para que se puedan copiar fácilmente, más la micro instrucción.
+// La usan "Datos para pagar" (tras verificar número y nombre) y el botón "Pásame los datos" del piloto (por waId).
+export async function sendDatosPago(waId: string, credit: { clabe: string; referencia: string }, opts?: SendOpts) {
+  const clabeMessage = buildClabeMessage(credit.clabe);
+  await sendText(waId, clabeMessage, opts);
+  await saveOutgoingMessage({ waId, text: clabeMessage });
+  const referenciaMessage = buildReferenciaMessage(credit.referencia);
+  await sendText(waId, referenciaMessage, opts);
+  await saveOutgoingMessage({ waId, text: referenciaMessage });
+  await sendText(waId, PAGO_MICRO_INSTRUCCION, opts);
+  await saveOutgoingMessage({ waId, text: PAGO_MICRO_INSTRUCCION });
+}
+
 export async function sendClienteMenu(to: string, opts?: SendOpts) {
   try {
     return await sendButtons(to, CLIENTE_MENU_BODY_TEXT, CLIENTE_MENU_BUTTONS, opts);
@@ -148,6 +161,24 @@ async function askComprobante(waId: string, opts?: SendOpts) {
 // Conserva los slots existentes (p.ej. numeroCredito ya confirmado) al entrar a esperar el comprobante.
 async function enterEsperaComprobante(waId: string, opts?: SendOpts) {
   await updateConversationState(waId, { stage: CLIENTE_STAGE_ESPERA_COMPROBANTE });
+  await askComprobante(waId, opts);
+}
+
+// "Ya pagué" cuando el crédito ya se conoce por el waId (botón de la plantilla del piloto): se salta la
+// verificación de número y nombre y pide el comprobante directo. El numeroCredito queda en slots.cliente
+// para que el PaymentProof se guarde ligado a su crédito, igual que en el camino verificado.
+export async function enterComprobanteConCredito(
+  waId: string,
+  baseSlots: Record<string, unknown>,
+  numeroCredito: string,
+  opts?: SendOpts
+) {
+  const cliente: ClienteSlots = { attempts: 0, numeroCredito, purpose: "comprobante" };
+  await updateConversationState(waId, {
+    stage: CLIENTE_STAGE_ESPERA_COMPROBANTE,
+    lastIntent: "CLIENTE",
+    slots: { ...baseSlots, cliente }
+  });
   await askComprobante(waId, opts);
 }
 
@@ -288,15 +319,7 @@ export async function handleClienteFlow(params: {
         return { handled: true };
       }
 
-      // CLABE y referencia en mensajes separados para que se puedan copiar fácilmente
-      const clabeMessage = buildClabeMessage(credit.clabe);
-      await sendText(waId, clabeMessage, opts);
-      await saveOutgoingMessage({ waId, text: clabeMessage });
-      const referenciaMessage = buildReferenciaMessage(credit.referencia);
-      await sendText(waId, referenciaMessage, opts);
-      await saveOutgoingMessage({ waId, text: referenciaMessage });
-      await sendText(waId, PAGO_MICRO_INSTRUCCION, opts);
-      await saveOutgoingMessage({ waId, text: PAGO_MICRO_INSTRUCCION });
+      await sendDatosPago(waId, credit, opts);
 
       const { cliente: _cliente, ...restSlots } = baseSlots;
       await updateConversationState(waId, { stage: "start", lastIntent: "SALUDO", slots: restSlots });

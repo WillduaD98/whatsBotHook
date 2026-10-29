@@ -1,5 +1,6 @@
 import multer from "multer";
 import type { Request, Response, NextFunction } from "express";
+import { GANCHO_IMAGEN_MAX_BYTES, isGanchoImagenMimeType } from "../../shared/pilotoTemplates.constants.js";
 
 const MAX_BROADCAST_FILES = 10;
 const MAX_BROADCAST_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
@@ -125,3 +126,14 @@ export function creditsCsvUploadMiddleware(req: any, res: any, next: any) {
     return res.status(status).json({ message });
   });
 }
+
+// Imagen fija del encabezado de prox_credito_gancho (campo "imagen" del FormData): solo JPG/PNG, como pide Meta.
+const ganchoImagenUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { files: 1, fileSize: GANCHO_IMAGEN_MAX_BYTES },
+  fileFilter: (_req, file, cb) => {
+    if (isGanchoImagenMimeType(file.mimetype.toLowerCase())) return cb(null, true);
+    cb(new Error("Solo se permiten imágenes JPG o PNG"));
+  }
+});
+export const ganchoImagenUploadMiddleware = multerSingleMiddleware(ganchoImagenUpload, "imagen", GANCHO_IMAGEN_MAX_BYTES);

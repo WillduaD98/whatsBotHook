@@ -4,6 +4,7 @@ import path from "path";
 import fs from "fs";
 import { webhookRouter } from "./routes/webhook.routes.js";
 import { repoRoot, uploadsPath } from "./config/paths.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
 export function createApp() {
   const app = express();
@@ -75,6 +76,9 @@ export function createApp() {
       return res.sendFile(clientIndexHtmlPath);
     });
   }
+
+  // Va al final: recibe lo que las rutas mandan con next(err).
+  app.use(errorHandler);
 
   return app;
 }

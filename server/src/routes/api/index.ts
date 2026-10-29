@@ -5,6 +5,7 @@ import { conversationsRouter } from "./conversations.routes.js";
 import { creditsRouter } from "./credits.routes.js";
 import { messagesRouter } from "./messages.routes.js";
 import { paymentProofRouter } from "./paymentProof.routes.js";
+import { pilotoRouter } from "./piloto.routes.js";
 import { statsRouter } from "./stats.routes.js";
 import { weeklyTipRouter } from "./weeklyTip.routes.js";
 
@@ -18,3 +19,4 @@ apiRouter.use(weeklyTipRouter);
 apiRouter.use(statsRouter);
 apiRouter.use(creditsRouter);
 apiRouter.use(paymentProofRouter);
+apiRouter.use(pilotoRouter);

@@ -105,6 +105,8 @@ export interface CreditUploadSummary {
     actualizados: number;
     omitidos: number;
     errores: CreditUploadError[];
+    // Resultado de las columnas del piloto (waId, limite, plazos, ...); misma forma que el de créditos.
+    piloto?: Omit<CreditUploadSummary, 'piloto'>;
 }
 
 // 'regresado_por_cliente': el propio cliente pidió reenviar su comprobante desde WhatsApp
@@ -166,4 +168,32 @@ export async function apiFetch(
     if (token) nextHeaders.set('Authorization', `Bearer ${token}`);
     if (!nextHeaders.has('Accept')) nextHeaders.set('Accept', 'application/json');
     return fetch(buildApiUrl(path), { ...rest, headers: nextHeaders });
+}
+
+// Citas de renovación que agenda el bot en el piloto (panel 🔥 Piloto).
+// 'pendiente_confirmacion': agendada para mañana, la confirma un asesor · 'pendiente_fecha': el cliente pidió otro día.
+export type RenovacionCitaStatus = 'pendiente_confirmacion' | 'pendiente_fecha';
+
+export interface RenovacionCitaRecord {
+    id: string;
+    waId: string;
+    numeroCredito: string;
+    nombre: string | null;
+    monto: number;
+    plazoSemanas: number;
+    tasaSemanal: number;
+    cuotaSemanal: number;
+    fechaCita: string | null;
+    status: RenovacionCitaStatus;
+    createdAt: string;
+}
+
+export interface RenovacionCitaListResponse {
+    items: RenovacionCitaRecord[];
+    total: number;
+}
+
+// Imagen del encabezado de la plantilla prox_credito_gancho; url null si aún no se sube.
+export interface GanchoImagenResponse {
+    url: string | null;
 }

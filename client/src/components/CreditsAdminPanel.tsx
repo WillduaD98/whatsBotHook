@@ -103,7 +103,9 @@ export const CreditsAdminPanel: React.FC<CreditsAdminPanelProps> = ({ onNavigate
 
         <div className="stats-filters" style={{ gridTemplateColumns: '1fr auto' }}>
           <div className="stats-filter">
-            <label className="stats-label">Archivo (columnas: numeroCredito, nombre, clabe, referencia)</label>
+            <label className="stats-label">
+              Archivo (columnas: numeroCredito, nombre, clabe, referencia · piloto opcional: waId, limite, plazos, nivel, racha, renovaciones)
+            </label>
             <input
               className="stats-input"
               type="file"
@@ -131,6 +133,18 @@ export const CreditsAdminPanel: React.FC<CreditsAdminPanelProps> = ({ onNavigate
                   <li key={err.fila}>Fila {err.fila}: {err.motivo}</li>
                 ))}
               </ul>
+            )}
+            {uploadSummary.piloto && uploadSummary.piloto.recibidos > 0 && (
+              <div style={{ marginTop: '8px' }}>
+                Piloto → Recibidos: {uploadSummary.piloto.recibidos} · Insertados: {uploadSummary.piloto.insertados} · Actualizados: {uploadSummary.piloto.actualizados} · Omitidos: {uploadSummary.piloto.omitidos}
+                {uploadSummary.piloto.errores.length > 0 && (
+                  <ul>
+                    {uploadSummary.piloto.errores.map((err) => (
+                      <li key={`piloto-${err.fila}`}>Fila {err.fila}: {err.motivo}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             )}
           </div>
         )}

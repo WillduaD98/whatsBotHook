@@ -1,12 +1,22 @@
 import { Request, Response } from 'express';
 import { Credit } from '../models/Credit.js';
 import { normalizeCreditNumber, upsertCredits, type CreditRow } from '../services/credit.service.js';
+import { cargarClientesCreditoDesdeCsv } from '../services/clienteCredito.service.js';
+import { ajustarResumenCsv, prepararFilasCsv } from '../mappers/creditsCsv.mapper.js';
+import type { CreditsCsvColumn } from '../types/creditsCsv.types.js';
 
-const CREDIT_CSV_COLUMNS: Record<string, keyof CreditRow> = {
+// Cada columna del CSV de créditos: las del Credit (obligatorias) y las del piloto ClienteCredito (opcionales).
+const CREDIT_CSV_COLUMNS: Record<string, CreditsCsvColumn> = {
     numerocredito: 'numeroCredito',
     nombre: 'nombre',
     clabe: 'clabe',
-    referencia: 'referencia'
+    referencia: 'referencia',
+    waid: 'waId',
+    limite: 'limite',
+    plazos: 'plazos',
+    nivel: 'nivel',
+    racha: 'racha',
+    renovaciones: 'renovaciones'
 };
 
 // Normaliza un encabezado de CSV para que "Número Crédito", " numero_credito " y "NUMEROCREDITO" apunten a la misma clave
@@ -58,11 +68,10 @@ function parseCsv(text: string): string[][] {
 }
 
 // POST /api/credits/upload (multipart: file)
+// Carga el catálogo de Credit y, en las filas que traen columnas del piloto, también su ClienteCredito.
 export const uploadCredits = async (req: Request, res: Response) => {
     try {
-        const file = (req as any)?.file as
-            | { originalname: string; mimetype: string; size: number; buffer: Buffer }
-            | undefined;
+        const file = req.file;
 
         if (!file || !Buffer.isBuffer(file.buffer)) {
             return res.status(400).json({ message: 'file is required' });
@@ -82,16 +91,14 @@ export const uploadCredits = async (req: Request, res: Response) => {
             return res.status(400).json({ message: `Encabezados faltantes: ${missingKeys.join(', ')}` });
         }
 
-        const mapped: CreditRow[] = dataRows.map((cols) => {
-            const row: CreditRow = {};
-            columnKeys.forEach((key, idx) => {
-                if (key) row[key] = cols[idx] ?? '';
-            });
-            return row;
+        // Filas con columnas de más que no se pueden alinear (ej. nombre con coma) no llegan a ninguna carga.
+        const { rows: filas, filaOriginal, errores } = prepararFilasCsv(columnKeys, dataRows);
+        // Escriben en colecciones distintas y no dependen una de la otra.
+        const [summary, piloto] = await Promise.all([upsertCredits(filas), cargarClientesCreditoDesdeCsv(filas)]);
+        return res.status(200).json({
+            ...ajustarResumenCsv(summary, filaOriginal, errores),
+            piloto: ajustarResumenCsv(piloto, filaOriginal)
         });
-
-        const summary = await upsertCredits(mapped);
-        return res.status(200).json(summary);
     } catch (error) {
         console.error('Error uploading credits CSV:', error);
         return res.status(500).json({ message: 'Error uploading credits CSV' });

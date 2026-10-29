@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiFetch, buildApiUrl, Conversation, Message } from '../types';
 import { sortDedupe, sameDay, dayLabel } from './chat/messageUtils';
+import { PilotoTemplateModal } from './PilotoTemplateModal';
 
 interface ChatWindowProps {
   conversation: Conversation | null;
@@ -37,6 +38,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
   const [proofVideoFile, setProofVideoFile] = useState<File | null>(null);
   const [proofVideoSending, setProofVideoSending] = useState(false);
   const [proofVideoError, setProofVideoError] = useState<string | null>(null);
+  const [pilotoOpen, setPilotoOpen] = useState(false);
 
   useEffect(() => {
     if (conversation) {
@@ -452,8 +454,32 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
             >
               📹 Video comprobante
             </button>
+            <button
+              onClick={() => setPilotoOpen(true)}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                border: '1px solid #ccc',
+                background: '#fff',
+                cursor: 'pointer',
+                fontSize: '0.9em'
+              }}
+              title="Enviar plantillas del piloto: streak_alert, due_date_action, prox_credito_gancho"
+            >
+              🔥 Piloto
+            </button>
           </div>
         </div>
+      )}
+
+      {pilotoOpen && conversation && (
+        <PilotoTemplateModal
+          waId={conversation.waId}
+          authToken={authToken}
+          onUnauthorized={onUnauthorized}
+          onClose={() => setPilotoOpen(false)}
+          onSent={(newMsg) => setMessages((prev) => sortDedupe([...prev, newMsg]))}
+        />
       )}
 
       {weeklyTipOpen && (

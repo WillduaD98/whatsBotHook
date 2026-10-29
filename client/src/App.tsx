@@ -5,6 +5,7 @@ import { StatsPanel } from './components/StatsPanel';
 import { BulkBroadcastPanel } from './components/BulkBroadcastPanel';
 import { WeeklyTipAdminPanel } from './components/WeeklyTipAdminPanel';
 import { CreditsAdminPanel } from './components/CreditsAdminPanel';
+import { PilotoPanel } from './components/PilotoPanel';
 import { PaymentProofsPanel } from './components/PaymentProofsPanel';
 import { apiFetch, Conversation } from './types';
 import './index.css';
@@ -262,6 +263,8 @@ function App() {
         <CreditsAdminPanel onNavigate={navigate} authToken={authToken} onUnauthorized={handleUnauthorized} />
       ) : path === '/payment-proofs' ? (
         <PaymentProofsPanel onNavigate={navigate} authToken={authToken} onUnauthorized={handleUnauthorized} />
+      ) : path === '/piloto' ? (
+        <PilotoPanel onNavigate={navigate} authToken={authToken} onUnauthorized={handleUnauthorized} />
       ) : (
         <ChatWindow conversation={selectedConversation} authToken={authToken} onUnauthorized={handleUnauthorized} onBack={() => setSelectedConversation(null)} />
       )}
@@ -304,6 +307,14 @@ function App() {
         title="Comprobantes de pago"
       >
         🧾
+      </button>
+      <button
+        className="floating-action-button floating-piloto-button"
+        onClick={() => navigate('/piloto')}
+        aria-label="Abrir piloto de renovación"
+        title="Piloto: imagen del gancho y citas de renovación"
+      >
+        🔥
       </button>
     </div>
   );
