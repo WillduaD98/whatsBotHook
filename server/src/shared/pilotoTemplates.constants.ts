@@ -1,9 +1,16 @@
 // Plantillas de Meta del piloto "droga del pago": una sola fuente para el endpoint, el mapper y sus types.
 // El nombre debe ser idéntico al dado de alta en WhatsApp Manager.
 
-// streak_alert = día −1 (recordatorio) · due_date_action = día 0 (paga hoy) · prox_credito_gancho = gancho de renovación.
-export const PILOTO_TEMPLATES = ["streak_alert", "due_date_action", "prox_credito_gancho"] as const;
+// faltan_dos_dias_pago_racha = día −2 (beneficios de la racha) · streak_alert = día −1 (recordatorio) ·
+// due_date_action = día 0 (paga hoy) · prox_credito_gancho = gancho de renovación.
+export const PILOTO_TEMPLATES = ["faltan_dos_dias_pago_racha", "streak_alert", "due_date_action", "prox_credito_gancho"] as const;
 export type PilotoTemplateName = (typeof PILOTO_TEMPLATES)[number];
+
+// Botón de faltan_dos_dias_pago_racha (texto exacto de Meta): el bot le explica qué es y qué desbloquea su racha.
+export const PILOTO_RACHA_BOTON = "¿Para qué sirve mi racha?";
+
+// Tope del beneficio que escribe el operador: en una sola línea se lee bien dentro de la plantilla.
+export const BENEFICIO_MAX_CARACTERES = 60;
 
 // Textos de los botones de respuesta rápida de due_date_action, tal como se dieron de alta en Meta.
 // En plantillas, el webhook recibe el TEXTO del botón como payload (type "button"), por eso se reconocen por texto.

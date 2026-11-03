@@ -4,6 +4,7 @@ import {
   PILOTO_GANCHO_BOTON,
   PILOTO_MANDAR_COMPROBANTE_BOTON,
   PILOTO_PAGO_BOTONES,
+  PILOTO_RACHA_BOTON,
   type PilotoPagoBoton
 } from "../shared/pilotoTemplates.constants.js";
 import type { ComprobanteAutomaticoInput } from "../types/piloto.types.js";
@@ -37,6 +38,13 @@ export function pilotoPagoBotonFromMessage(
 export function esComprobanteAutomatico(params: ComprobanteAutomaticoInput): boolean {
   const esMedia = (params.type === "image" || params.type === "document") && Boolean(params.mediaUrl);
   return esMedia && !params.stage.startsWith("PRE_SOLICITUD") && params.stage !== params.stageComprobantePendiente;
+}
+
+const RACHA_COMPACTO = compactar(PILOTO_RACHA_BOTON);
+
+// Botón "¿Para qué sirve mi racha?" de la plantilla del día −2 (solo como botón de plantilla, no texto escrito).
+export function esBotonRacha(type: string, buttonText: string | undefined): boolean {
+  return type === "button" && Boolean(buttonText) && compactar(buttonText ?? "") === RACHA_COMPACTO;
 }
 
 const GANCHO_COMPACTO = compactar(PILOTO_GANCHO_BOTON);

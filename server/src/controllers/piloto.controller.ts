@@ -9,15 +9,16 @@ import { enviarPlantillaPiloto } from "../services/pilotoTemplates.service.js";
 import { listarCitasRenovacion } from "../services/renovacionCita.service.js";
 import { isGanchoImagenMimeType } from "../shared/pilotoTemplates.constants.js";
 
-// POST /api/chats/:waId/piloto-template   body: { plantilla, monto?, fecha? }
+// POST /api/chats/:waId/piloto-template   body: { plantilla, monto?, fecha?, beneficio? }
 export const sendPilotoTemplate = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const waId = String(req.params.waId ?? "").trim();
     const plantilla = parsePilotoTemplateName(String(req.body?.plantilla ?? ""));
     const monto = String(req.body?.monto ?? "");
     const fecha = String(req.body?.fecha ?? "");
+    const beneficio = String(req.body?.beneficio ?? "");
 
-    const savedMessage = await enviarPlantillaPiloto(waId, { plantilla, monto, fecha });
+    const savedMessage = await enviarPlantillaPiloto(waId, { plantilla, monto, fecha, beneficio });
     return res.status(200).json(savedMessage);
   } catch (err) {
     return next(err);

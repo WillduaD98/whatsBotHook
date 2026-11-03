@@ -2,7 +2,7 @@
 // de los datos del cliente en BD y lo que captura el operador. Puro: sin BD ni HTTP.
 // ⚠️ El orden de bodyParams y los textos deben coincidir con lo dado de alta en Meta (PILOTO_DROGA_DEL_PAGO.md §2).
 import { PilotoError } from "../errors/PilotoErrores.js";
-import { PILOTO_TEMPLATES, type PilotoTemplateName } from "../shared/pilotoTemplates.constants.js";
+import { BENEFICIO_MAX_CARACTERES, PILOTO_TEMPLATES, type PilotoTemplateName } from "../shared/pilotoTemplates.constants.js";
 import type { PilotoClienteDatos, PilotoTemplateArmada, PilotoTemplateInput } from "../types/piloto.types.js";
 import { formatMiles, formatPesos, parseMonto } from "../utils/money.js";
 
@@ -13,14 +13,28 @@ export function parsePilotoTemplateName(raw: string): PilotoTemplateName {
   return plantilla;
 }
 
-// Monto y fecha de vencimiento, obligatorios en las dos plantillas de pago. El formato del monto (con o sin "$")
-// depende de cada plantilla.
-function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha: string } {
+// Monto del pago que captura el operador. El formato (con o sin "$") depende de cada plantilla.
+function requireMonto(input: PilotoTemplateInput): number {
   const monto = parseMonto(input.monto);
   if (monto === null || monto <= 0) throw new PilotoError("MONTO_INVALIDO");
+  return monto;
+}
+
+// Monto y fecha de vencimiento, obligatorios en las plantillas de día −1 y día 0.
+function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha: string } {
+  const monto = requireMonto(input);
   const fecha = (input.fecha ?? "").trim();
   if (!fecha) throw new PilotoError("FALTA_FECHA");
   return { monto, fecha };
+}
+
+// Beneficio que escribe el operador. Meta no acepta saltos de línea ni tabs en una variable (ni más de 4 espacios
+// seguidos: se compactan a uno); el tope de largo es para que se lea bien en la plantilla.
+function requireBeneficio(input: PilotoTemplateInput): string {
+  const beneficio = (input.beneficio ?? "").trim().replace(/ {2,}/g, " ");
+  if (!beneficio) throw new PilotoError("FALTA_BENEFICIO");
+  if (/[\r\n\t]/.test(beneficio) || beneficio.length > BENEFICIO_MAX_CARACTERES) throw new PilotoError("BENEFICIO_INVALIDO");
+  return beneficio;
 }
 
 // Meta limita el encabezado a 60 caracteres ya con la variable: "Mañana toca tu pago, no rompas tu racha {{1}}!"
@@ -29,6 +43,25 @@ function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha:
 function primerNombre(nombre: string): string {
   const palabras = nombre.trim().split(/\s+/);
   return palabras[2] ?? palabras[palabras.length - 1] ?? nombre;
+}
+
+// Día −2. Body: {{1}} primer nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} racha · {{4}} beneficio.
+// Sin fecha ni variable en el encabezado; su botón "¿Para qué sirve mi racha?" lo atiende pilotoRacha.flow.
+function armarFaltanDosDias(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
+  const monto = formatMiles(requireMonto(input));
+  const beneficio = requireBeneficio(input);
+  const nombre = primerNombre(datos.nombre);
+  const racha = String(datos.racha);
+  return {
+    bodyParams: [nombre, monto, racha, beneficio],
+    preview:
+      `*¡No rompas tu racha!*\n\n` +
+      `Hola _${nombre},_ en *2 días toca tu pago de: $${monto}* 🗓️\n\n` +
+      `🔥 Llevas *${racha} pagos* seguidos a tiempo.\n` +
+      `Si acumulas pagos en tiempo y forma, aumenta tu racha y con eso puedes desbloquear: *${beneficio}* 🎁\n\n` +
+      `Mantén tu racha 🔥 y sube de nivel con TandaYa 💪\n` +
+      `_Beneficios sujetos a aprobación._`
+  };
 }
 
 // Día −1. Encabezado: {{1}} primer nombre. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha ·
@@ -87,6 +120,8 @@ function armarProxCreditoGancho(datos: PilotoClienteDatos): PilotoTemplateArmada
 // Despacha a la plantilla elegida; lanza PilotoError si falta lo que captura el operador.
 export function armarPlantillaPiloto(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
   switch (input.plantilla) {
+    case "faltan_dos_dias_pago_racha":
+      return armarFaltanDosDias(datos, input);
     case "streak_alert":
       return armarStreakAlert(datos, input);
     case "due_date_action":

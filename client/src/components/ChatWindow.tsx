@@ -464,7 +464,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ conversation, authToken,
                 cursor: 'pointer',
                 fontSize: '0.9em'
               }}
-              title="Enviar plantillas del piloto: streak_alert, due_date_action, prox_credito_gancho"
+              title="Enviar plantillas del piloto: faltan_dos_dias_pago_racha, streak_alert, due_date_action, prox_credito_gancho"
             >
               🔥 Piloto
             </button>

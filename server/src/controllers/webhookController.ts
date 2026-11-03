@@ -21,7 +21,14 @@ import { handleLocationFlow } from "../flows/location.flow.js";
 import { enterAsesor, handleAsesorFlow } from "../flows/asesor.flow.js";
 // Piloto: botones de la plantilla due_date_action, ligados por waId
 import { handlePilotoPagoBoton, recibirComprobanteLigado } from "../flows/pilotoPago.flow.js";
-import { esComprobanteAutomatico, pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from "../mappers/pilotoBoton.mapper.js";
+import {
+  esBotonRacha,
+  esComprobanteAutomatico,
+  pilotoPagoBotonFromMessage,
+  renovacionEntradaFromMessage
+} from "../mappers/pilotoBoton.mapper.js";
+// Piloto: botón "¿Para qué sirve mi racha?" (plantilla del día −2)
+import { explicarRacha } from "../flows/pilotoRacha.flow.js";
 // Piloto: flujo de renovación (botón del gancho o texto "renovar") → monto, plazo, cuota y cita
 import { enterRenovacion, handleRenovacionFlow } from "../flows/renovacion.flow.js";
 // Flujo de FAQ: menú de preguntas frecuentes (2 páginas) y respuestas a cada opción
@@ -336,6 +343,10 @@ export async function processIncomingMessage(params: {
   const pilotoPagoBoton = pilotoPagoBotonFromMessage(type, interactiveBtnTitle ?? interactiveBtnId, interactiveBtnId);
   if (pilotoPagoBoton) {
     await handlePilotoPagoBoton({ waId, boton: pilotoPagoBoton, slots: conv?.slots, senderPhoneNumberId: inboundPhoneNumberId });
+    return;
+  }
+  if (esBotonRacha(type, interactiveBtnTitle ?? interactiveBtnId)) {
+    await explicarRacha(waId, { senderPhoneNumberId: inboundPhoneNumberId });
     return;
   }
   // Comprobante automático: foto/PDF de un cliente ligado por waId (si no está ligado, sigue el flujo normal).

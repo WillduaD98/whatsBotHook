@@ -7,6 +7,8 @@ export type PilotoErrorCode =
   | "CREDITO_NO_ENCONTRADO"
   | "MONTO_INVALIDO"
   | "FALTA_FECHA"
+  | "FALTA_BENEFICIO"
+  | "BENEFICIO_INVALIDO"
   | "RENOVACION_NO_AUTORIZADA"
   | "FALTA_IMAGEN_GANCHO"
   | "IMAGEN_GANCHO_INVALIDA"
@@ -19,11 +21,14 @@ export type PilotoErrorCode =
 
 // Texto que ve el operador en el panel.
 const PILOTO_ERROR_MESSAGES: Record<PilotoErrorCode, string> = {
-  PLANTILLA_INVALIDA: "La plantilla no es del piloto (usa streak_alert, due_date_action o prox_credito_gancho)",
+  PLANTILLA_INVALIDA:
+    "La plantilla no es del piloto (usa faltan_dos_dias_pago_racha, streak_alert, due_date_action o prox_credito_gancho)",
   CLIENTE_NO_EN_PILOTO: "Este número no está en el piloto: cárgalo en el CSV de Créditos con waId, limite y plazos",
   CREDITO_NO_ENCONTRADO: "El numeroCredito de este cliente del piloto no existe en Créditos: cárgalo con nombre, CLABE y referencia",
   MONTO_INVALIDO: "Escribe el monto del pago (ej. 750)",
   FALTA_FECHA: "Escribe la fecha de vencimiento (ej. vie 30 oct)",
+  FALTA_BENEFICIO: "Escribe el beneficio que puede desbloquear (ej. un límite más alto en tu próximo crédito)",
+  BENEFICIO_INVALIDO: "El beneficio va en una sola línea, sin espacios de más y de máximo 60 caracteres",
   RENOVACION_NO_AUTORIZADA: "Este cliente tiene límite 0 (renovación no autorizada): no se le puede mandar el gancho de renovación",
   FALTA_IMAGEN_GANCHO: "Falta la imagen del gancho: súbela en el panel 🔥 Piloto antes de mandar prox_credito_gancho",
   IMAGEN_GANCHO_INVALIDA: "Selecciona una imagen JPG o PNG (máx. 5 MB) para el gancho",
@@ -43,6 +48,8 @@ const PILOTO_ERROR_STATUS: Record<PilotoErrorCode, DomainErrorStatus> = {
   CREDITO_NO_ENCONTRADO: 404,
   MONTO_INVALIDO: 400,
   FALTA_FECHA: 400,
+  FALTA_BENEFICIO: 400,
+  BENEFICIO_INVALIDO: 400,
   RENOVACION_NO_AUTORIZADA: 409,
   FALTA_IMAGEN_GANCHO: 409,
   IMAGEN_GANCHO_INVALIDA: 400,

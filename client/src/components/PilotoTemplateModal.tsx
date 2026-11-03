@@ -1,15 +1,32 @@
 // Modal para mandar a un chat una de las plantillas del piloto "droga del pago".
-// Nombre, racha, nivel y límite los pone el servidor desde la BD (CSV de Créditos); aquí solo se captura monto y fecha.
+// Nombre, racha, nivel y límite los pone el servidor desde la BD (CSV de Créditos); aquí solo se captura lo que
+// pide cada plantilla: monto, fecha y/o beneficio.
 import React, { useState } from 'react';
 import { apiFetch, Message } from '../types';
 
-type PilotoTemplate = 'streak_alert' | 'due_date_action' | 'prox_credito_gancho';
+type PilotoTemplate = 'faltan_dos_dias_pago_racha' | 'streak_alert' | 'due_date_action' | 'prox_credito_gancho';
+type CampoPlantilla = 'monto' | 'fecha' | 'beneficio';
 
-const PLANTILLAS: Array<{ id: PilotoTemplate; label: string; ayuda: string; pideMontoYFecha: boolean }> = [
-  { id: 'streak_alert', label: 'Mañana toca (día −1)', ayuda: 'Recordatorio con su racha. Sin botones.', pideMontoYFecha: true },
-  { id: 'due_date_action', label: 'Hoy toca (día 0)', ayuda: 'Pago de hoy con botones: Ya pagué / Pásame los datos / Necesito ayuda.', pideMontoYFecha: true },
-  { id: 'prox_credito_gancho', label: 'Gancho renovación', ayuda: 'Imagen + racha, nivel y límite. Su botón abre el flujo de renovación.', pideMontoYFecha: false }
+// Mismo tope que valida el servidor (BENEFICIO_MAX_CARACTERES).
+const BENEFICIO_MAX = 60;
+
+const PLANTILLAS: Array<{ id: PilotoTemplate; label: string; ayuda: string; campos: CampoPlantilla[] }> = [
+  {
+    id: 'faltan_dos_dias_pago_racha',
+    label: 'Faltan 2 días (día −2)',
+    ayuda: 'Racha + beneficio que puede desbloquear. Botón: ¿Para qué sirve mi racha?',
+    campos: ['monto', 'beneficio']
+  },
+  { id: 'streak_alert', label: 'Mañana toca (día −1)', ayuda: 'Recordatorio con su racha. Sin botones.', campos: ['monto', 'fecha'] },
+  { id: 'due_date_action', label: 'Hoy toca (día 0)', ayuda: 'Pago de hoy con botones: Ya pagué / Pásame los datos / Necesito ayuda.', campos: ['monto', 'fecha'] },
+  { id: 'prox_credito_gancho', label: 'Gancho renovación', ayuda: 'Imagen + racha, nivel y límite. Su botón abre el flujo de renovación.', campos: [] }
 ];
+
+const CAMPO_FALTANTE: Record<CampoPlantilla, string> = {
+  monto: 'el monto',
+  fecha: 'la fecha de vencimiento',
+  beneficio: 'el beneficio'
+};
 
 interface PilotoTemplateModalProps {
   waId: string;
@@ -34,15 +51,19 @@ export const PilotoTemplateModal: React.FC<PilotoTemplateModalProps> = ({ waId, 
   const [plantilla, setPlantilla] = useState<PilotoTemplate>('due_date_action');
   const [monto, setMonto] = useState('');
   const [fecha, setFecha] = useState('');
+  const [beneficio, setBeneficio] = useState('');
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const seleccionada = PLANTILLAS.find((p) => p.id === plantilla) ?? PLANTILLAS[0];
+  const pide = (campo: CampoPlantilla) => seleccionada.campos.includes(campo);
 
   const handleSend = async () => {
     if (sending) return;
-    if (seleccionada.pideMontoYFecha && (!monto.trim() || !fecha.trim())) {
-      setError('Faltan el monto y la fecha de vencimiento');
+    const valores: Record<CampoPlantilla, string> = { monto, fecha, beneficio };
+    const faltantes = seleccionada.campos.filter((campo) => !valores[campo].trim());
+    if (faltantes.length > 0) {
+      setError(`Falta ${faltantes.map((campo) => CAMPO_FALTANTE[campo]).join(' y ')}`);
       return;
     }
 
@@ -53,7 +74,7 @@ export const PilotoTemplateModal: React.FC<PilotoTemplateModalProps> = ({ waId, 
         method: 'POST',
         token: authToken,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plantilla, monto: monto.trim(), fecha: fecha.trim() })
+        body: JSON.stringify({ plantilla, monto: monto.trim(), fecha: fecha.trim(), beneficio: beneficio.trim() })
       });
 
       if (res.status === 401) { onUnauthorized(); return; }
@@ -113,17 +134,31 @@ export const PilotoTemplateModal: React.FC<PilotoTemplateModalProps> = ({ waId, 
             <code>{seleccionada.id}</code> · {seleccionada.ayuda} Nombre, racha, nivel y límite salen del CSV de Créditos.
           </div>
 
-          {seleccionada.pideMontoYFecha && (
-            <>
-              <label style={labelStyle}>
-                <span>Monto del pago (el "$" lo pone el sistema)</span>
-                <input type="text" value={monto} onChange={(e) => setMonto(e.target.value)} disabled={sending} placeholder="750" style={inputStyle} />
-              </label>
-              <label style={labelStyle}>
-                <span>Fecha de vencimiento (texto tal cual lo verá el cliente)</span>
-                <input type="text" value={fecha} onChange={(e) => setFecha(e.target.value)} disabled={sending} placeholder="vie 30 oct" style={inputStyle} />
-              </label>
-            </>
+          {pide('monto') && (
+            <label style={labelStyle}>
+              <span>Monto del pago (el "$" lo pone el sistema)</span>
+              <input type="text" value={monto} onChange={(e) => setMonto(e.target.value)} disabled={sending} placeholder="750" style={inputStyle} />
+            </label>
+          )}
+          {pide('fecha') && (
+            <label style={labelStyle}>
+              <span>Fecha de vencimiento (texto tal cual lo verá el cliente)</span>
+              <input type="text" value={fecha} onChange={(e) => setFecha(e.target.value)} disabled={sending} placeholder="vie 30 oct" style={inputStyle} />
+            </label>
+          )}
+          {pide('beneficio') && (
+            <label style={labelStyle}>
+              <span>Beneficio que puede desbloquear (una línea, máx. {BENEFICIO_MAX} caracteres · {beneficio.trim().length}/{BENEFICIO_MAX})</span>
+              <input
+                type="text"
+                value={beneficio}
+                onChange={(e) => setBeneficio(e.target.value)}
+                disabled={sending}
+                maxLength={BENEFICIO_MAX}
+                placeholder="un límite más alto en tu próximo crédito"
+                style={inputStyle}
+              />
+            </label>
           )}
 
           {error && <div style={{ color: '#b00020', fontSize: '0.9em' }}>{error}</div>}

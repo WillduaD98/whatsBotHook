@@ -1,7 +1,7 @@
 // Tests del reconocimiento de los botones de la plantilla due_date_action: el webhook recibe el TEXTO del botón
 // tal como se dio de alta en Meta ("Ya pagué", "Pásame los datos de pago", "Necesito ayuda").
 import { describe, it, expect } from 'vitest';
-import { esComprobanteAutomatico, pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from '../mappers/pilotoBoton.mapper';
+import { esBotonRacha, esComprobanteAutomatico, pilotoPagoBotonFromMessage, renovacionEntradaFromMessage } from '../mappers/pilotoBoton.mapper';
 import { PILOTO_MANDAR_COMPROBANTE_BOTON } from '../shared/pilotoTemplates.constants';
 
 describe('pilotoPagoBotonFromMessage', () => {
@@ -64,6 +64,29 @@ describe('botón "🧾 Mandar comprobante" (lo manda el bot tras los datos de pa
 
   it('su título cabe en el límite de 20 caracteres de Meta', () => {
     expect([...PILOTO_MANDAR_COMPROBANTE_BOTON.title].length).toBeLessThanOrEqual(20);
+  });
+});
+
+describe('esBotonRacha (plantilla del día −2)', () => {
+  it('el texto exacto de Meta "¿Para qué sirve mi racha?" → sí', () => {
+    expect(esBotonRacha('button', '¿Para qué sirve mi racha?')).toBe(true);
+  });
+
+  it('no depende de acentos ni signos', () => {
+    expect(esBotonRacha('button', 'Para que sirve mi racha')).toBe(true);
+  });
+
+  it('el cliente escribiéndolo como texto no es el botón', () => {
+    expect(esBotonRacha('text', '¿Para qué sirve mi racha?')).toBe(false);
+  });
+
+  it('un botón de pago no es el de la racha', () => {
+    expect(esBotonRacha('button', 'Ya pagué')).toBe(false);
+    expect(pilotoPagoBotonFromMessage('button', '¿Para qué sirve mi racha?')).toBeNull();
+  });
+
+  it('sin texto → no', () => {
+    expect(esBotonRacha('button', undefined)).toBe(false);
   });
 });
 

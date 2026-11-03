@@ -2,11 +2,13 @@
 import type { PilotoErrorCode } from "../errors/PilotoErrores.js";
 import type { GanchoImagenMimeType, PilotoTemplateName } from "../shared/pilotoTemplates.constants.js";
 
-// Lo que captura el operador en el panel; monto y fecha solo aplican a las plantillas de pago (no están en BD).
+// Lo que captura el operador en el panel (no está en BD): monto y fecha en las plantillas de pago,
+// beneficio en faltan_dos_dias_pago_racha.
 export type PilotoTemplateInput = {
   plantilla: PilotoTemplateName;
   monto?: string;
   fecha?: string;
+  beneficio?: string;
 };
 
 // Datos del cliente que salen de BD: nombre de Credit; racha, nivel y límite de ClienteCredito.

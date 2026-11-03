@@ -10,12 +10,63 @@ const maria: PilotoClienteDatos = { nombre: 'María López', racha: 7, nivel: 2,
 const clienteBd: PilotoClienteDatos = { ...maria, nombre: 'LOPEZ HERNANDEZ MARIA GUADALUPE' };
 
 describe('parsePilotoTemplateName', () => {
-  it.each([['streak_alert'], ['due_date_action'], ['prox_credito_gancho']])('acepta %s', (name) => {
+  it.each([['faltan_dos_dias_pago_racha'], ['streak_alert'], ['due_date_action'], ['prox_credito_gancho']])('acepta %s', (name) => {
     expect(parsePilotoTemplateName(name)).toBe(name);
   });
 
   it('rechaza una plantilla que no es del piloto', () => {
     expect(() => parsePilotoTemplateName('recordatorio_de_pago1')).toThrow(PilotoError);
+  });
+});
+
+describe('armarPlantillaPiloto · faltan_dos_dias_pago_racha (día −2)', () => {
+  const beneficio = 'un límite más alto en tu próximo crédito';
+
+  it('body: {{1}} primer nombre · {{2}} monto sin $ · {{3}} racha · {{4}} beneficio; sin variable en el encabezado', () => {
+    const armada = armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '$1,500', beneficio });
+    expect(armada.bodyParams).toEqual(['MARIA', '1,500', '7', beneficio]);
+    expect(armada.headerText).toBeUndefined();
+  });
+
+  it('no pide fecha (la plantilla no la lleva)', () => {
+    expect(() => armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '750', beneficio })).not.toThrow();
+  });
+
+  it('la vista previa es el texto de Meta con los valores del cliente', () => {
+    const { preview } = armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '750', beneficio });
+    expect(preview).toContain('*¡No rompas tu racha!*');
+    expect(preview).toContain('Hola _MARIA,_ en *2 días toca tu pago de: $750* 🗓️');
+    expect(preview).toContain('🔥 Llevas *7 pagos* seguidos a tiempo.');
+    expect(preview).toContain(`puedes desbloquear: *${beneficio}* 🎁`);
+    expect(preview).toContain('_Beneficios sujetos a aprobación._');
+  });
+
+  it.each([[undefined], [''], ['   ']])('beneficio %s → FALTA_BENEFICIO', (valor) => {
+    expect(() =>
+      armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '750', ...(valor !== undefined && { beneficio: valor }) })
+    ).toThrow(expect.objectContaining({ pilotoCode: 'FALTA_BENEFICIO' }));
+  });
+
+  it('Meta no acepta saltos de línea en una variable → BENEFICIO_INVALIDO', () => {
+    expect(() => armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '750', beneficio: 'más plazos\ny mejor límite' }))
+      .toThrow(expect.objectContaining({ pilotoCode: 'BENEFICIO_INVALIDO' }));
+  });
+
+  it('más de 60 caracteres → BENEFICIO_INVALIDO; justo 60 sí pasa', () => {
+    const base = { plantilla: 'faltan_dos_dias_pago_racha' as const, monto: '750' };
+    expect(() => armarPlantillaPiloto(clienteBd, { ...base, beneficio: 'a'.repeat(61) }))
+      .toThrow(expect.objectContaining({ pilotoCode: 'BENEFICIO_INVALIDO' }));
+    expect(armarPlantillaPiloto(clienteBd, { ...base, beneficio: 'a'.repeat(60) }).bodyParams[3]).toBe('a'.repeat(60));
+  });
+
+  it('los espacios de más se compactan (Meta rechaza más de 4 seguidos)', () => {
+    const { bodyParams } = armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: '750', beneficio: '  más     plazos  ' });
+    expect(bodyParams[3]).toBe('más plazos');
+  });
+
+  it('monto inválido → MONTO_INVALIDO', () => {
+    expect(() => armarPlantillaPiloto(clienteBd, { plantilla: 'faltan_dos_dias_pago_racha', monto: 'abc', beneficio }))
+      .toThrow(expect.objectContaining({ pilotoCode: 'MONTO_INVALIDO' }));
   });
 });
 
