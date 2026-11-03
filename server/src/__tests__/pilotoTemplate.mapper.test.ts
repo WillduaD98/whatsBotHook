@@ -23,9 +23,16 @@ describe('armarPlantillaPiloto · streak_alert (día −1)', () => {
     expect(bodyParams).toEqual(['María López', '1,500', 'mañana, vie 30 oct', '7', '7']);
   });
 
-  it('el encabezado lleva el nombre en su {{1}}', () => {
+  it('el encabezado lleva solo el primer nombre en su {{1}} (Meta limita el encabezado a 60 caracteres)', () => {
     const { headerText } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '750', fecha: 'vie 30 oct' });
-    expect(headerText).toBe('María López');
+    expect(headerText).toBe('María');
+  });
+
+  it('con un nombre completo largo el encabezado cabe en 60 caracteres', () => {
+    const largo = { ...maria, nombre: 'María Guadalupe Hernández de la Cruz' };
+    const { headerText, bodyParams } = armarPlantillaPiloto(largo, { plantilla: 'streak_alert', monto: '750', fecha: 'vie 30 oct' });
+    expect(`Mañana toca tu pago, no rompas tu racha ${headerText}!`.length).toBeLessThanOrEqual(60);
+    expect(bodyParams[0]).toBe('María Guadalupe Hernández de la Cruz');
   });
 
   it('due_date_action no lleva variable en el encabezado', () => {
@@ -35,8 +42,9 @@ describe('armarPlantillaPiloto · streak_alert (día −1)', () => {
 
   it('la vista previa trae los mismos valores que recibe el cliente', () => {
     const { preview } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '750', fecha: 'vie 30 oct' });
-    expect(preview).toContain('Hola María López, mañana toca tu pago de *$750* (vence *vie 30 oct*).');
-    expect(preview).toContain('🔥 Tu racha: 7');
+    expect(preview).toContain('*Mañana toca tu pago, no rompas tu racha María!*');
+    expect(preview).toContain('Hola María López, mañana toca tu pago de $*750* (vence *vie 30 oct*).');
+    expect(preview).toContain('*🔥 Tu racha: 7*, sigue así!');
     expect(preview).toContain('*7 pagos en tiempo y forma*');
   });
 });

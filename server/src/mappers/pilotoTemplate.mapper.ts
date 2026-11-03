@@ -23,20 +23,27 @@ function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha:
   return { monto, fecha };
 }
 
-// Día −1. Encabezado: {{1}} nombre. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha ·
+// Meta limita el encabezado a 60 caracteres ya con la variable: "Mañana toca tu pago, no rompas tu racha {{1}}!"
+// ocupa 41, así que ahí solo cabe el primer nombre (el nombre completo va en el body).
+function primerNombre(nombre: string): string {
+  return nombre.trim().split(/\s+/)[0] ?? nombre;
+}
+
+// Día −1. Encabezado: {{1}} primer nombre. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha ·
 // {{4}} y {{5}} racha (Meta no dejó reutilizar {{4}}: son dos variables con el mismo valor → 5 parámetros).
 function armarStreakAlert(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
   const { monto: montoNumero, fecha } = requireMontoYFecha(input);
   const monto = formatMiles(montoNumero);
   const racha = String(datos.racha);
+  const headerText = primerNombre(datos.nombre);
   return {
-    headerText: datos.nombre,
+    headerText,
     bodyParams: [datos.nombre, monto, fecha, racha, racha],
     preview:
-      `*Mañana toca tu pago*\n\n` +
-      `Hola ${datos.nombre}, mañana toca tu pago de *$${monto}* (vence *${fecha}*).\n\n` +
-      `🔥 Tu racha: ${racha}\n\n` +
-      `¡Llevas una racha de *${racha} pagos en tiempo y forma*! 🔥 Así es como subes de nivel con TandaYa. No la sueltes 💪`
+      `*Mañana toca tu pago, no rompas tu racha ${headerText}!*\n\n` +
+      `Hola ${datos.nombre}, mañana toca tu pago de $*${monto}* (vence *${fecha}*).\n\n` +
+      `*🔥 Tu racha: ${racha}*, sigue así!\n\n` +
+      `¡Llevas una racha de *${racha} pagos en tiempo y forma*! 🔥 Así es como subes de nivel con TandaYa. No la rompas 💪`
   };
 }
 
