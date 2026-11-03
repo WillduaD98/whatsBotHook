@@ -25,8 +25,10 @@ function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha:
 
 // Meta limita el encabezado a 60 caracteres ya con la variable: "Mañana toca tu pago, no rompas tu racha {{1}}!"
 // ocupa 41, así que ahí solo cabe el primer nombre (el nombre completo va en el body).
+// En BD el nombre viene "PATERNO MATERNO NOMBRE(S)": el primer nombre es la 3ª palabra; con un solo apellido, la última.
 function primerNombre(nombre: string): string {
-  return nombre.trim().split(/\s+/)[0] ?? nombre;
+  const palabras = nombre.trim().split(/\s+/);
+  return palabras[2] ?? palabras[palabras.length - 1] ?? nombre;
 }
 
 // Día −1. Encabezado: {{1}} primer nombre. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha ·
