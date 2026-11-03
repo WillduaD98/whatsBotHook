@@ -16,16 +16,19 @@ export type WhatsAppListInput = {
   sectionTitle?: string;
 };
 
-// Plantilla de Meta a enviar: parámetros de texto del body (en orden {{1}}, {{2}}, …) y, si su encabezado es imagen, el mediaId.
+// Plantilla de Meta a enviar: parámetros de texto del body (en orden {{1}}, {{2}}, …) y, si su encabezado lleva
+// variable, el mediaId (encabezado de imagen) o el texto de su {{1}} (encabezado de texto; numera aparte del body).
 export type WhatsAppTemplateInput = {
   name: string;
   bodyParams: string[];
   headerImageId?: string;
+  headerText?: string;
 };
 
 // Un componente de plantilla tal como lo espera Graph.
 export type WhatsAppTemplateComponent =
   | { type: "header"; parameters: Array<{ type: "image"; image: { id: string } }> }
+  | { type: "header"; parameters: Array<{ type: "text"; text: string }> }
   | { type: "body"; parameters: Array<{ type: "text"; text: string }> };
 
 // Objeto `interactive` de tipo list tal como lo espera Graph.

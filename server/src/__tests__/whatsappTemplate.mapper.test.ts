@@ -16,6 +16,13 @@ describe('toTemplateComponents', () => {
     ]);
   });
 
+  it('encabezado de texto con variable: header (text) con su propio {{1}}, aparte del body', () => {
+    expect(toTemplateComponents({ name: 'streak_alert', bodyParams: ['María', '750'], headerText: 'María' })).toEqual([
+      { type: 'header', parameters: [{ type: 'text', text: 'María' }] },
+      { type: 'body', parameters: [{ type: 'text', text: 'María' }, { type: 'text', text: '750' }] }
+    ]);
+  });
+
   it('sin variables no manda body (Meta rechaza parámetros de más: #132000)', () => {
     expect(toTemplateComponents({ name: 'sin_variables', bodyParams: [] })).toEqual([]);
   });

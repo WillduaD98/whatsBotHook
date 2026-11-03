@@ -23,13 +23,14 @@ function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha:
   return { monto, fecha };
 }
 
-// Día −1. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha · {{4}} y {{5}} racha
-// (Meta no dejó reutilizar {{4}}: son dos variables con el mismo valor → 5 parámetros).
+// Día −1. Encabezado: {{1}} nombre. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha ·
+// {{4}} y {{5}} racha (Meta no dejó reutilizar {{4}}: son dos variables con el mismo valor → 5 parámetros).
 function armarStreakAlert(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
   const { monto: montoNumero, fecha } = requireMontoYFecha(input);
   const monto = formatMiles(montoNumero);
   const racha = String(datos.racha);
   return {
+    headerText: datos.nombre,
     bodyParams: [datos.nombre, monto, fecha, racha, racha],
     preview:
       `*Mañana toca tu pago*\n\n` +

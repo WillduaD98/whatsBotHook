@@ -23,6 +23,16 @@ describe('armarPlantillaPiloto · streak_alert (día −1)', () => {
     expect(bodyParams).toEqual(['María López', '1,500', 'mañana, vie 30 oct', '7', '7']);
   });
 
+  it('el encabezado lleva el nombre en su {{1}}', () => {
+    const { headerText } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '750', fecha: 'vie 30 oct' });
+    expect(headerText).toBe('María López');
+  });
+
+  it('due_date_action no lleva variable en el encabezado', () => {
+    const { headerText } = armarPlantillaPiloto(maria, { plantilla: 'due_date_action', monto: '750', fecha: 'hoy' });
+    expect(headerText).toBeUndefined();
+  });
+
   it('la vista previa trae los mismos valores que recibe el cliente', () => {
     const { preview } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '750', fecha: 'vie 30 oct' });
     expect(preview).toContain('Hola María López, mañana toca tu pago de *$750* (vence *vie 30 oct*).');

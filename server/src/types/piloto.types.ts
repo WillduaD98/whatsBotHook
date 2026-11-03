@@ -16,9 +16,11 @@ export type PilotoClienteDatos = {
   limite: number;
 };
 
-// Plantilla lista para enviar: parámetros del body en el orden de Meta + texto que se guarda para el panel.
+// Plantilla lista para enviar: parámetros del body en el orden de Meta, el {{1}} del encabezado si lo lleva
+// y el texto que se guarda para el panel.
 export type PilotoTemplateArmada = {
   bodyParams: string[];
+  headerText?: string;
   preview: string;
 };
 

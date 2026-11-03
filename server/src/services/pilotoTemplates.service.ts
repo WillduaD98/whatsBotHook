@@ -35,11 +35,16 @@ async function subirImagenGancho(imagen: GanchoImagen): Promise<string> {
 // Valida y arma antes de subir la imagen o enviar, para no gastar envíos con datos incompletos.
 export async function enviarPlantillaPiloto(waId: string, input: PilotoTemplateInput) {
   const datos = await cargarDatosCliente(waId);
-  const { bodyParams, preview } = armarPlantillaPiloto(datos, input);
+  const { bodyParams, headerText, preview } = armarPlantillaPiloto(datos, input);
   const imagen = input.plantilla === "prox_credito_gancho" ? await requireGanchoImagen() : null;
   const headerImageId = imagen ? await subirImagenGancho(imagen) : undefined;
 
-  const apiRes = await sendTemplate(waId, { name: input.plantilla, bodyParams, ...(headerImageId && { headerImageId }) });
+  const apiRes = await sendTemplate(waId, {
+    name: input.plantilla,
+    bodyParams,
+    ...(headerImageId && { headerImageId }),
+    ...(headerText && { headerText })
+  });
   const messageId = apiRes.messages?.[0]?.id;
 
   return saveOutgoingMessage({
