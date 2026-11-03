@@ -13,24 +13,27 @@ export function parsePilotoTemplateName(raw: string): PilotoTemplateName {
   return plantilla;
 }
 
-// Monto ("$750") y fecha de vencimiento, obligatorios en las dos plantillas de pago.
-function requireMontoYFecha(input: PilotoTemplateInput): { monto: string; fecha: string } {
+// Monto y fecha de vencimiento, obligatorios en las dos plantillas de pago. El formato del monto (con o sin "$")
+// depende de cada plantilla.
+function requireMontoYFecha(input: PilotoTemplateInput): { monto: number; fecha: string } {
   const monto = parseMonto(input.monto);
   if (monto === null || monto <= 0) throw new PilotoError("MONTO_INVALIDO");
   const fecha = (input.fecha ?? "").trim();
   if (!fecha) throw new PilotoError("FALTA_FECHA");
-  return { monto: formatPesos(monto), fecha };
+  return { monto, fecha };
 }
 
-// Día −1. Body: {{1}} nombre · {{2}} monto · {{3}} fecha · {{4}} racha (aparece 2 veces, se manda 1).
+// Día −1. Body: {{1}} nombre · {{2}} monto sin "$" (el "$" está en el texto) · {{3}} fecha · {{4}} y {{5}} racha
+// (Meta no dejó reutilizar {{4}}: son dos variables con el mismo valor → 5 parámetros).
 function armarStreakAlert(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
-  const { monto, fecha } = requireMontoYFecha(input);
+  const { monto: montoNumero, fecha } = requireMontoYFecha(input);
+  const monto = formatMiles(montoNumero);
   const racha = String(datos.racha);
   return {
-    bodyParams: [datos.nombre, monto, fecha, racha],
+    bodyParams: [datos.nombre, monto, fecha, racha, racha],
     preview:
       `*Mañana toca tu pago*\n\n` +
-      `Hola ${datos.nombre}, mañana toca tu pago de *${monto}* (vence *${fecha}*).\n\n` +
+      `Hola ${datos.nombre}, mañana toca tu pago de *$${monto}* (vence *${fecha}*).\n\n` +
       `🔥 Tu racha: ${racha}\n\n` +
       `¡Llevas una racha de *${racha} pagos en tiempo y forma*! 🔥 Así es como subes de nivel con TandaYa. No la sueltes 💪`
   };
@@ -38,7 +41,8 @@ function armarStreakAlert(datos: PilotoClienteDatos, input: PilotoTemplateInput)
 
 // Día 0. Body: {{1}} nombre · {{2}} monto · {{3}} fecha · {{4}} racha (aparece 2 veces, se manda 1).
 function armarDueDateAction(datos: PilotoClienteDatos, input: PilotoTemplateInput): PilotoTemplateArmada {
-  const { monto, fecha } = requireMontoYFecha(input);
+  const { monto: montoNumero, fecha } = requireMontoYFecha(input);
+  const monto = formatPesos(montoNumero);
   const racha = String(datos.racha);
   return {
     bodyParams: [datos.nombre, monto, fecha, racha],

@@ -18,9 +18,9 @@ describe('parsePilotoTemplateName', () => {
 });
 
 describe('armarPlantillaPiloto · streak_alert (día −1)', () => {
-  it('body: {{1}} nombre · {{2}} monto con $ · {{3}} fecha · {{4}} racha (4 parámetros, la racha una sola vez)', () => {
-    const { bodyParams } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '750', fecha: 'mañana, vie 30 oct' });
-    expect(bodyParams).toEqual(['María López', '$750', 'mañana, vie 30 oct', '7']);
+  it('body: {{1}} nombre · {{2}} monto sin $ (la plantilla ya lo trae) · {{3}} fecha · {{4}} y {{5}} la misma racha', () => {
+    const { bodyParams } = armarPlantillaPiloto(maria, { plantilla: 'streak_alert', monto: '$1,500', fecha: 'mañana, vie 30 oct' });
+    expect(bodyParams).toEqual(['María López', '1,500', 'mañana, vie 30 oct', '7', '7']);
   });
 
   it('la vista previa trae los mismos valores que recibe el cliente', () => {
