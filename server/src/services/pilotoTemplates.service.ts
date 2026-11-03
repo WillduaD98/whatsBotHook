@@ -1,9 +1,12 @@
 // Envío de las plantillas del piloto a un cliente desde el panel: junta sus datos de BD, arma la
 // plantilla, la manda por Meta y la guarda en el historial del chat.
+import axios from "axios";
 import fs from "fs/promises";
 import { PilotoError } from "../errors/PilotoErrores.js";
+import { pilotoErrorDesdeMeta } from "../mappers/metaTemplateError.mapper.js";
 import { armarPlantillaPiloto } from "../mappers/pilotoTemplate.mapper.js";
 import type { GanchoImagen, PilotoClienteDatos, PilotoTemplateInput } from "../types/piloto.types.js";
+import type { MetaErrorResponse, WhatsAppTemplateInput } from "../types/whatsapp.types.js";
 import { findClienteConCredito } from "./clienteCredito.service.js";
 import { findGanchoImagen } from "./ganchoImagen.service.js";
 import { saveOutgoingMessage } from "./context.service.js";
@@ -32,6 +35,18 @@ async function subirImagenGancho(imagen: GanchoImagen): Promise<string> {
   return id;
 }
 
+// Si Meta rechaza la plantilla, el operador ve el motivo en el panel (PilotoError); sin respuesta de Meta sale 500.
+async function enviarAMeta(waId: string, template: WhatsAppTemplateInput) {
+  try {
+    return await sendTemplate(waId, template);
+  } catch (err) {
+    const deMeta = axios.isAxiosError<MetaErrorResponse>(err) ? pilotoErrorDesdeMeta(err.response?.data) : null;
+    if (!deMeta) throw err;
+    console.error(`[piloto] Meta rechazó ${template.name}:`, deMeta.detalle);
+    throw new PilotoError(deMeta.codigo, deMeta.detalle);
+  }
+}
+
 // Valida y arma antes de subir la imagen o enviar, para no gastar envíos con datos incompletos.
 export async function enviarPlantillaPiloto(waId: string, input: PilotoTemplateInput) {
   const datos = await cargarDatosCliente(waId);
@@ -39,7 +54,7 @@ export async function enviarPlantillaPiloto(waId: string, input: PilotoTemplateI
   const imagen = input.plantilla === "prox_credito_gancho" ? await requireGanchoImagen() : null;
   const headerImageId = imagen ? await subirImagenGancho(imagen) : undefined;
 
-  const apiRes = await sendTemplate(waId, {
+  const apiRes = await enviarAMeta(waId, {
     name: input.plantilla,
     bodyParams,
     ...(headerImageId && { headerImageId }),

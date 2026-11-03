@@ -25,6 +25,15 @@ export type WhatsAppTemplateInput = {
   headerText?: string;
 };
 
+// Cuerpo de error que regresa Graph cuando rechaza un envío (ej. code 132000 = variables no coinciden).
+export type MetaErrorResponse = {
+  error?: {
+    message?: string;
+    code?: number;
+    error_data?: { details?: string };
+  };
+};
+
 // Un componente de plantilla tal como lo espera Graph.
 export type WhatsAppTemplateComponent =
   | { type: "header"; parameters: Array<{ type: "image"; image: { id: string } }> }

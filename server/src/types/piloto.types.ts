@@ -1,4 +1,5 @@
 // Formas del envío de las plantillas del piloto desde el panel.
+import type { PilotoErrorCode } from "../errors/PilotoErrores.js";
 import type { GanchoImagenMimeType, PilotoTemplateName } from "../shared/pilotoTemplates.constants.js";
 
 // Lo que captura el operador en el panel; monto y fecha solo aplican a las plantillas de pago (no están en BD).
@@ -14,6 +15,12 @@ export type PilotoClienteDatos = {
   racha: number;
   nivel: number;
   limite: number;
+};
+
+// Rechazo de Meta ya traducido: qué error del piloto es y la descripción de Meta para mostrarla en el panel.
+export type PilotoErrorDeMeta = {
+  codigo: PilotoErrorCode;
+  detalle: string;
 };
 
 // Plantilla lista para enviar: parámetros del body en el orden de Meta, el {{1}} del encabezado si lo lleva
